@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LevelUp — Your Semester, Organized</title>
+
+    
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/home.css">
+</head>
+
+<body>
+
+<!-- Navbar -->
+<header class="lp-nav">
+    <div class="lp-nav-inner">
+        <a href="home.html" class="lp-brand">
+            <img src="assets/logo.png" alt="LevelUp logo">
+        </a>
+
+        <ul class="lp-nav-links" id="homeNavLinks">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#screenshots">Screenshots</a></li>
+            <li><a href="#reviews">Reviews</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+
+        <div class="lp-nav-actions">
+            <button class="lp-icon-btn" id="homeThemeToggle" aria-label="Toggle dark mode">
+                <i class="bi bi-moon-stars-fill"></i>
+            </button>
+            <a href="index.html" class="lp-btn lp-btn-primary">
+                Login <i class="bi bi-arrow-right"></i>
+            </a>
+            <button class="lp-burger" id="homeBurger" aria-label="Open menu">
+                <i class="bi bi-list"></i>
+            </button>
+        </div>
+    </div>
+</header>
+
+<!-- Hero -->
+<section class="lp-hero">
+    <div class="lp-container lp-hero-grid">
+        <div>
+            <span class="lp-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Built for university coursework</span>
+            <h1>Turn a scattered semester into <span>one clear plan.</span></h1>
+            <p>LevelUp brings your timetable, assignments, attendance and study sessions into a single dashboard, so you always know what's due, what's next, and how you're actually doing.</p>
+            <div class="lp-hero-ctas">
+                <a href="index.html" class="lp-btn lp-btn-primary">
+                    <i class="bi bi-grid-fill"></i> Go to dashboard
+                </a>
+                <a href="#features" class="lp-btn lp-btn-ghost">
+                    <i class="bi bi-play-circle"></i> See how it works
+                </a>
+            </div>
+            <div class="lp-hero-badges">
+                <span class="lp-hero-badge"><i class="bi bi-check-circle-fill"></i> Exam-aware planner</span>
+                <span class="lp-hero-badge"><i class="bi bi-check-circle-fill"></i> Attendance tracking</span>
+                <span class="lp-hero-badge"><i class="bi bi-check-circle-fill"></i> Dark mode</span>
+            </div>
+        </div>
+
+        <div class="lp-mockup-wrap">
+            <div class="lp-chip lp-chip-streak"><i class="bi bi-fire"></i> 12-day streak</div>
+            <div class="lp-chip lp-chip-task"><i class="bi bi-check2-circle"></i> 3 tasks due today</div>
+            <div class="lp-browser">
+                <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                <img src="assets/screenshots/index.jpg" alt="LevelUp dashboard overview" loading="lazy">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="lp-section" id="features">
+    <div class="lp-container">
+        <div class="lp-section-head lp-center lp-reveal">
+            <span class="lp-eyebrow"><i class="bi bi-stars"></i> What's inside</span>
+            <h2>Everything your semester needs, in one place.</h2>
+            <p>No more juggling five different apps. Every LevelUp tool talks to the same schedule and the same data.</p>
+        </div>
+
+        <div class="lp-feature-row lp-reveal">
+            <div class="lp-feature-copy">
+                <span class="lp-eyebrow"><i class="bi bi-calendar2-week"></i> Study planner</span>
+                <h3>A study plan that respects your actual life.</h3>
+                <p>LevelUp builds study sessions around your exams, not just your to-do list — while staying inside the working hours and daily limits you set.</p>
+                <ul class="lp-feature-list">
+                    <li><i class="bi bi-check-lg"></i> Exam-aware session generation</li>
+                    <li><i class="bi bi-check-lg"></i> Custom working hours &amp; daily session caps</li>
+                    <li><i class="bi bi-check-lg"></i> Locked timetables so a plan doesn't shift under you</li>
+                </ul>
+            </div>
+            <div class="lp-feature-media">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/studyplanner.jpg" alt="LevelUp study planner screen" loading="lazy">
+                </div>
+            </div>
+        </div>
+
+        <div class="lp-feature-row lp-reverse lp-reveal">
+            <div class="lp-feature-copy">
+                <span class="lp-eyebrow"><i class="bi bi-clipboard2-check"></i> Attendance</span>
+                <h3>Know exactly where your attendance stands.</h3>
+                <p>Log lectures as you go and see per-subject percentages update in real time, so a bad week never sneaks up on you before finals.</p>
+                <ul class="lp-feature-list">
+                    <li><i class="bi bi-check-lg"></i> Per-subject attendance percentages</li>
+                    <li><i class="bi bi-check-lg"></i> Daily log with quick mark-present/absent</li>
+                    <li><i class="bi bi-check-lg"></i> Streaks that keep you showing up</li>
+                </ul>
+            </div>
+            <div class="lp-feature-media">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/attendance.jpg" alt="LevelUp attendance tracker screen" loading="lazy">
+                </div>
+            </div>
+        </div>
+
+        <div class="lp-feature-row lp-reveal">
+            <div class="lp-feature-copy">
+                <span class="lp-eyebrow"><i class="bi bi-graph-up-arrow"></i> Progress</span>
+                <h3>See your progress, not just your to-do list.</h3>
+                <p>Charts break down time spent, completion rates and subject-by-subject progress, so you can tell what's actually working before exam week.</p>
+                <ul class="lp-feature-list">
+                    <li><i class="bi bi-check-lg"></i> Subject-by-subject progress bars</li>
+                    <li><i class="bi bi-check-lg"></i> Weekly study-time charts</li>
+                    <li><i class="bi bi-check-lg"></i> One glance instead of five spreadsheets</li>
+                </ul>
+            </div>
+            <div class="lp-feature-media">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/progress.jpg" alt="LevelUp progress tracking screen" loading="lazy">
+                </div>
+            </div>
+        </div>
+
+        <div class="lp-feature-row lp-reverse lp-reveal">
+            <div class="lp-feature-copy">
+                <span class="lp-eyebrow"><i class="bi bi-list-check"></i> Tasks &amp; assignments</span>
+                <h3>Every deadline, sorted before it sorts you.</h3>
+                <p>Assignments and exams live in one list with priority and due dates, and feed straight into the planner so nothing gets scheduled twice.</p>
+                <ul class="lp-feature-list">
+                    <li><i class="bi bi-check-lg"></i> Assignments and exams in one view</li>
+                    <li><i class="bi bi-check-lg"></i> Priority and due-date sorting</li>
+                    <li><i class="bi bi-check-lg"></i> Notifications before things are due</li>
+                </ul>
+            </div>
+            <div class="lp-feature-media">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/tasks.jpg" alt="LevelUp tasks and assignments screen" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Screenshots gallery -->
+<section class="lp-section" id="screenshots" style="background: var(--bg-soft);">
+    <div class="lp-container">
+        <div class="lp-section-head lp-center lp-reveal">
+            <span class="lp-eyebrow"><i class="bi bi-images"></i> Take a look inside</span>
+            <h2>A quick tour of the dashboard.</h2>
+            <p>Six screens, one connected system — from your calendar to your focus timer.</p>
+        </div>
+
+        <div class="lp-gallery lp-reveal">
+            <figure class="lp-gallery-item">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/index.jpg" alt="Dashboard overview" loading="lazy">
+                </div>
+                <figcaption>Dashboard overview</figcaption>
+            </figure>
+            <figure class="lp-gallery-item">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/calendar.jpg" alt="Smart timetable and calendar" loading="lazy">
+                </div>
+                <figcaption>Smart timetable</figcaption>
+            </figure>
+            <figure class="lp-gallery-item">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/studyplanner.jpg" alt="Study planner" loading="lazy">
+                </div>
+                <figcaption>Study planner</figcaption>
+            </figure>
+            <figure class="lp-gallery-item">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/attendance.jpg" alt="Attendance tracker" loading="lazy">
+                </div>
+                <figcaption>Attendance tracker</figcaption>
+            </figure>
+            <figure class="lp-gallery-item">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/progress.jpg" alt="Progress tracking" loading="lazy">
+                </div>
+                <figcaption>Progress tracking</figcaption>
+            </figure>
+            <figure class="lp-gallery-item">
+                <div class="lp-browser">
+                    <div class="lp-browser-bar"><span></span><span></span><span></span></div>
+                    <img src="assets/screenshots/tasks.jpg" alt="Tasks and assignments" loading="lazy">
+                </div>
+                <figcaption>Tasks &amp; assignments</figcaption>
+            </figure>
+        </div>
+    </div>
+</section>
+
+<!-- Reviews -->
+<section class="lp-section" id="reviews">
+    <div class="lp-container">
+        <div class="lp-section-head lp-center lp-reveal">
+            <span class="lp-eyebrow"><i class="bi bi-chat-quote"></i> From students testing it</span>
+            <h2>What early users are saying.</h2>
+            <p>LevelUp is still growing, but here's what the first students to try it told us.</p>
+        </div>
+
+        <div class="lp-reviews lp-reveal">
+            <div class="lp-review-card">
+                <div class="lp-stars"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
+                <p>"The exam-aware planner is the reason I stopped cramming. It just quietly builds sessions around what's actually due."</p>
+                <div class="lp-reviewer">
+                    <div class="lp-avatar" style="background:#6d5dfc;">AS</div>
+                    <div class="lp-reviewer-info">
+                        <strong>Amaya S.</strong>
+                        <span>2nd year, Computer Science</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lp-review-card">
+                <div class="lp-stars"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-half"></i></div>
+                <p>"Attendance tracking sounds boring until it saves you from a nasty surprise before finals. I check it every Monday now."</p>
+                <div class="lp-reviewer">
+                    <div class="lp-avatar" style="background:#22c55e;">RK</div>
+                    <div class="lp-reviewer-info">
+                        <strong>Ravindu K.</strong>
+                        <span>3rd year, Software Engineering</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lp-review-card">
+                <div class="lp-stars"><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i></div>
+                <p>"Finally one dashboard instead of five apps. The progress charts make it obvious which subject I've been ignoring."</p>
+                <div class="lp-reviewer">
+                    <div class="lp-avatar" style="background:#f59e0b;">TN</div>
+                    <div class="lp-reviewer-info">
+                        <strong>Tharushi N.</strong>
+                        <span>1st year, Information Systems</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About -->
+<section class="lp-section" id="about" style="background: var(--bg-soft);">
+    <div class="lp-container lp-about lp-reveal">
+        <div class="lp-about-visual">
+            <img src="assets/logo-light.png" alt="LevelUp logo">
+        </div>
+        <div class="lp-about-copy">
+            <span class="lp-eyebrow"><i class="bi bi-people"></i> About us</span>
+            <h2 style="font-size:1.9rem; font-weight:700; color:var(--text-main); margin:16px 0 12px;">Built by students who were tired of juggling five apps.</h2>
+            <p>LevelUp started as a university project between two computer science students who wanted one dashboard for the parts of student life that actually pile up — timetables, assignments, attendance and study time.</p>
+            <p>Instead of another to-do list, we built something that understands your exams and your working hours, and plans around both. It's still growing, and every feature you see here came from something we needed ourselves.</p>
+            <div class="lp-about-stats">
+                <div class="lp-about-stat">
+                    <strong>6</strong>
+                    <span>Tools, one dashboard</span>
+                </div>
+                <div class="lp-about-stat">
+                    <strong>2</strong>
+                    <span>Students building it</span>
+                </div>
+                <div class="lp-about-stat">
+                    <strong>1</strong>
+                    <span>Place for your semester</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact -->
+<section class="lp-section" id="contact">
+    <div class="lp-container lp-contact lp-reveal">
+        <div class="lp-contact-info">
+            <span class="lp-eyebrow"><i class="bi bi-envelope"></i> Get in touch</span>
+            <h2>Questions, feedback, or a feature you're missing?</h2>
+            <p>We're actively building LevelUp and read every message. Tell us what's working, what's confusing, or what you wish it did.</p>
+
+            <div class="lp-contact-row">
+                <div class="lp-icon-btn"><i class="bi bi-envelope-fill"></i></div>
+                <a href="mailto:hello@levelup-app.com">hello@levelup-app.com</a>
+            </div>
+            <div class="lp-contact-row">
+                <div class="lp-icon-btn"><i class="bi bi-geo-alt-fill"></i></div>
+                <span>Colombo, Sri Lanka</span>
+            </div>
+            <div class="lp-contact-row">
+                <div class="lp-icon-btn"><i class="bi bi-github"></i></div>
+                <a href="#">github.com/levelup-app</a>
+            </div>
+        </div>
+
+        <form class="lp-contact-form" id="homeContactForm">
+            <div class="lp-form-row">
+                <div>
+                    <label for="cName">Name</label>
+                    <input type="text" id="cName" placeholder="Your name" required>
+                </div>
+                <div>
+                    <label for="cEmail">Email</label>
+                    <input type="email" id="cEmail" placeholder="you@example.com" required>
+                </div>
+            </div>
+            <label for="cMessage">Message</label>
+            <textarea id="cMessage" placeholder="What's on your mind?" required></textarea>
+            <button type="submit" class="lp-btn lp-btn-primary">
+                <i class="bi bi-send"></i> Send message
+            </button>
+        </form>
+    </div>
+</section>
+
+<!-- CTA banner -->
+<section class="lp-section" style="padding-top:0;">
+    <div class="lp-container lp-reveal">
+        <div class="lp-cta-banner">
+            <h2>Ready to level up your semester?</h2>
+            <p>Jump into your dashboard and see your timetable, tasks and progress in one place.</p>
+            <a href="index.html" class="lp-btn lp-btn-primary">
+                <i class="bi bi-grid-fill"></i> Go to dashboard
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="lp-footer">
+    <div class="lp-container">
+        <div class="lp-footer-top">
+            <div class="lp-footer-brand">
+                <a href="home.html" class="lp-brand">
+                    <img src="assets/logo.png" alt="LevelUp logo">
+                </a>
+                <p>One place for your timetable, tasks, attendance and study time.Built for students, by students.</p>
+            </div>
+
+            <div class="lp-footer-links">
+                <div>
+                    <h5>Product</h5>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#screenshots">Screenshots</a></li>
+                        <li><a href="index.html">Dashboard</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5>Company</h5>
+                    <ul>
+                        <li><a href="#about">About</a></li>
+                        <li><a href="#reviews">Reviews</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="lp-footer-bottom">
+            <span>&copy; 2026 LevelUp. University of Sri Jayawardenapura</span>
+            <span>Made with <i class="bi bi-heart-fill" style="color:#f87171;"></i> for a better semester.</span>
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="JS/home.js"></script>
+</body>
+</html>
