@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calendar - LevelUp</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="CSS/style.css">
+</head>
+
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Notifications Sidebar -->
+<div class="notif-overlay" id="notifOverlay"></div>
+<div class="notif-panel" id="notifPanel">
+    <div class="notif-panel-header">
+        <h6>Notifications</h6>
+        <div class="d-flex align-items-center gap-2">
+            <button id="markAllRead">Mark all read</button>
+            <button class="notif-close" id="notifClose" aria-label="Close notifications"><i class="bi bi-x-lg"></i></button>
+        </div>
+    </div>
+    <div class="notif-list" id="notifList">
+        <div class="notif-item unread" data-id="1"><i class="bi bi-journal-text text-primary"></i><div><p>Database ER Diagram is due today</p><small>2h ago</small></div></div>
+        <div class="notif-item unread" data-id="2"><i class="bi bi-pencil-square text-danger"></i><div><p>Statistics Quiz is on Friday</p><small>5h ago</small></div></div>
+        <div class="notif-item unread" data-id="3"><i class="bi bi-fire text-warning"></i><div><p>You're on a 12-day streak, keep it going!</p><small>1d ago</small></div></div>
+        <div class="notif-item unread" data-id="4"><i class="bi bi-people text-success"></i><div><p>Rotaract meeting moved to Saturday 2 PM</p><small>1d ago</small></div></div>
+    </div>
+</div>
+
+<div class="wrapper">
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="assets/logo.png" alt="LevelUp logo" class="logo-img">
+            <button class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <ul id="sidebarNav">
+            <li data-href="index.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
+            <li class="active" data-href="calendar.html"><i class="bi bi-calendar3"></i> Calendar</li>
+            <li data-href="tasks.html"><i class="bi bi-list-check"></i> Tasks</li>
+            <li data-href="assignments-exams.html?type=assignment"><i class="bi bi-journal-text"></i> Assignments</li>
+            <li data-href="assignments-exams.html?type=exam"><i class="bi bi-pencil-square"></i> Exams</li>
+            <li data-href="index.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
+            <li data-href="attendance.html"><i class="bi bi-clipboard2-check"></i> Attendance</li>
+            <li data-href="studyplanner.html"><i class="bi bi-calendar2-week"></i> Study Planner</li>
+            <li data-href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</li>
+            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li>        </ul>
+    </div>
+
+    <!--  Main Content  -->
+    <div class="main-content" id="top">
+
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="menu-toggle" id="menuToggle" aria-label="Open menu"><i class="bi bi-list"></i></button>
+                    <div>
+                        <h2 id="greetingTitle">Calendar</h2>
+                        <p id="greetingSub">Plan your month and keep an eye on what's coming up.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-4 navbar-actions">
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
+                    <div class="notification" id="notifWrap">
+                        <i class="bi bi-bell fs-4" id="notifBell" role="button"></i>
+                        <span id="notifCount">4</span>
+                    </div>
+                    <div class="profile">
+                        <img src="https://i.pravatar.cc/45" alt="">
+                        <div>
+                            <h6>Sunil</h6>
+                            <small>Computer Science</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="row g-4 mt-1">
+            <div class="col-lg-7">
+                <div class="dashboard-card" id="calendarCard">
+                    <div class="card-header-custom">
+                        <h4 id="calendarMonthLabel">July 2026</h4>
+                        <div>
+                            <i class="bi bi-chevron-left me-3" id="calPrev" role="button"></i>
+                            <i class="bi bi-chevron-right" id="calNext" role="button"></i>
+                        </div>
+                    </div>
+                    <table class="calendar">
+                        <thead>
+                            <tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr>
+                        </thead>
+                        <tbody id="calendarBody">
+                            <tr><td></td><td></td><td>1</td><td>2</td><td>3</td><td class="today">4</td><td>5</td></tr>
+                            <tr><td>6</td><td>7</td><td>8</td><td class="event-day">9</td><td>10</td><td>11</td><td>12</td></tr>
+                            <tr><td>13</td><td>14</td><td>15</td><td>16</td><td class="event-day">17</td><td>18</td><td>19</td></tr>
+                            <tr><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td><td>26</td></tr>
+                            <tr><td>27</td><td>28</td><td>29</td><td>30</td><td>31</td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                    <p class="calendar-hint" id="calendarHint">9th &amp; 17th have events. Click any day to select it.</p>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="dashboard-card" id="eventsCard">
+                    <div class="card-header-custom">
+                        <h4>Upcoming Events</h4>
+                    </div>
+                    <div class="event-item cal-event-item">
+                        <div class="event-icon bg-purple"><i class="bi bi-journal-text"></i></div>
+                        <div><h6>Assignment Deadline</h6><small>Tomorrow • Database Project</small></div>
+                    </div>
+                    <div class="event-item cal-event-item">
+                        <div class="event-icon bg-danger"><i class="bi bi-pencil-square"></i></div>
+                        <div><h6>Statistics Quiz</h6><small>Friday • 10:00 AM</small></div>
+                    </div>
+                    <div class="event-item cal-event-item">
+                        <div class="event-icon bg-success"><i class="bi bi-people"></i></div>
+                        <div><h6>Rotaract Meeting</h6><small>Saturday • 2:00 PM</small></div>
+                    </div>
+                    <div class="event-item cal-event-item">
+                        <div class="event-icon bg-warning"><i class="bi bi-book"></i></div>
+                        <div><h6>Study Goal</h6><small>Complete 10 Hours This Week</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="app-footer">
+            <div class="footer-brand"><img src="assets/logo-light.png" alt="LevelUp logo" class="footer-brand-logo footer-logo-light"><img src="assets/logo.png" alt="LevelUp logo" class="footer-brand-logo footer-logo-dark"></div>
+            <p class="mb-0">&copy; 2026 LevelUp. All rights reserved.</p>
+            <ul class="footer-links">
+                <li><a href="settings.html">Settings</a></li>
+                <li><a href="#top">Back to top</a></li>
+            </ul>
+        </footer>
+
+    </div>
+
+</div>
+
+<!-- Toast container -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="JS/script.js"></script>
+
+</body>
+</html>
