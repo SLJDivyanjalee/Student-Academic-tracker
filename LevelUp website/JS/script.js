@@ -129,58 +129,6 @@ function initSidebar() {
 }
 
 /* ==========================================================================
-   Page search bars
-   ========================================================================== */
-
-function initPageSearch() {
-    wireListFilter('taskSearch', '#tasksTable tbody tr');
-    wireListFilter('attendanceSearch', '#attendanceLogTable tbody tr');
-    initAssignmentsExamsTabs();
-    initPageSearchPopup();
-}
-/* Navbar search icon -> popup search bar (used on Tasks, Assignments & Exams, Attendance) */
-function initPageSearchPopup() {
-    const toggle = document.getElementById('pageSearchToggle');
-    const popup = document.getElementById('pageSearchPopup');
-    if (!toggle || !popup) return;
-
-    const input = popup.querySelector('input');
-
-    const openPopup = () => {
-        popup.classList.add('open');
-        toggle.classList.add('active');
-        if (input) setTimeout(() => input.focus(), 50);
-    };
-    const closePopup = () => {
-        popup.classList.remove('open');
-        toggle.classList.remove('active');
-    };
-
-    toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        popup.classList.contains('open') ? closePopup() : openPopup();
-    });
-
-    popup.addEventListener('click', (e) => e.stopPropagation());
-
-    document.addEventListener('click', () => closePopup());
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closePopup();
-    });
-}
-
-function bumpCompletedCount(delta) {
-    const el = document.getElementById('statCompleted');
-    if (!el) return;
-    const current = parseInt(el.textContent, 10) || 0;
-    const next = Math.max(0, current + delta);
-    el.textContent = next;
-    el.dataset.count = next;
-    pulseCard(el);
-}
-
-/* ==========================================================================
    Notifications: slide-in sidebar
    ========================================================================== */
 
@@ -581,6 +529,451 @@ function pulseCard(el) {
     if (!card) return;
     card.classList.add('pulse');
     setTimeout(() => card.classList.remove('pulse'), 500);
+}
+
+/* ==========================================================================
+   Recent Tasks table
+   ========================================================================== */
+
+const TASK_STATUS_ORDER = ['pending', 'progress', 'done'];
+const TASK_STATUS_LABELS = { pending: 'Pending', progress: 'In Progress', done: 'Completed' };
+const TASK_URGENCY_ORDER = ['low', 'medium', 'high'];
+const TASK_URGENCY_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
+
+function initTasksTable() {
+    const table = document.getElementById('tasksTable');
+    if (!table) return;
+
+    const activateStatusPill = (pill) => {
+        const row = pill.closest('tr');
+        const current = pill.dataset.status;
+        const next = TASK_STATUS_ORDER[(TASK_STATUS_ORDER.indexOf(current) + 1) % TASK_STATUS_ORDER.length];
+
+        pill.classList.remove('status-pending', 'status-progress', 'status-done');
+        pill.classList.add(`status-${next}`);
+        pill.dataset.status = next;
+        pill.textContent = TASK_STATUS_LABELS[next];
+
+        const wasDone = current === 'done';
+        const isDone = next === 'done';
+
+        if (isDone && !wasDone) {
+            row.classList.add('completed-row');
+            bumpCompletedCount(1);
+            showToast('Nice work! Task completed.', 'success');
+        } else if (!isDone && wasDone) {
+            row.classList.remove('completed-row');
+            bumpCompletedCount(-1);
+        }
+    };
+
+    const activateUrgencyPill = (pill) => {
+        const current = pill.dataset.urgency;
+        const next = TASK_URGENCY_ORDER[(TASK_URGENCY_ORDER.indexOf(current) + 1) % TASK_URGENCY_ORDER.length];
+
+        pill.classList.remove('urgency-low', 'urgency-medium', 'urgency-high');
+        pill.classList.add(`urgency-${next}`);
+        pill.dataset.urgency = next;
+        pill.textContent = TASK_URGENCY_LABELS[next];
+    };
+
+    table.addEventListener('click', (e) => {
+        const statusPill = e.target.closest('.status-pill');
+        if (statusPill) { activateStatusPill(statusPill); return; }
+        const urgencyPill = e.target.closest('.urgency-pill');
+        if (urgencyPill) { activateUrgencyPill(urgencyPill); return; }
+        const editBtn = e.target.closest('.action-edit-btn');
+        if (editBtn) { openEditTaskModal(editBtn.closest('tr')); return; }
+        const delBtn = e.target.closest('.log-delete-btn');
+        if (delBtn) {
+            const row = delBtn.closest('tr');
+            const name = row.querySelector('.task-name')?.textContent || 'Task';
+            row.remove();
+            showToast(`"${name}" deleted.`);
+        }
+    });
+    table.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const statusPill = e.target.closest('.status-pill');
+        if (statusPill) { e.preventDefault(); activateStatusPill(statusPill); return; }
+        const urgencyPill = e.target.closest('.urgency-pill');
+        if (urgencyPill) { e.preventDefault(); activateUrgencyPill(urgencyPill); }
+    });
+
+    initAddTaskForm();
+}
+
+/* Opens the Edit Task modal pre-filled with the given row's current values. */
+function openEditTaskModal(row) {
+    const modalEl = document.getElementById('editTaskModal');
+    if (!row || !modalEl || typeof bootstrap === 'undefined') return;
+
+    const nameEl = row.querySelector('.task-name');
+    const subjectEl = row.querySelector('.task-subject');
+    const dueEl = row.children[2];
+    const urgencyPill = row.querySelector('.urgency-pill');
+
+    document.getElementById('editTaskName').value = nameEl ? nameEl.textContent.trim() : '';
+    document.getElementById('editTaskSubject').value = subjectEl ? subjectEl.textContent.trim() : '';
+    document.getElementById('editTaskDue').value = dueEl ? dueEl.textContent.trim() : '';
+    document.getElementById('editTaskUrgency').value = urgencyPill ? urgencyPill.dataset.urgency : 'medium';
+
+    const saveBtn = document.getElementById('editTaskSaveBtn');
+    saveBtn.onclick = () => {
+        const name = document.getElementById('editTaskName').value.trim();
+        const subject = document.getElementById('editTaskSubject').value.trim();
+        const dueLabel = document.getElementById('editTaskDue').value.trim() || 'No due date';
+        const urgency = document.getElementById('editTaskUrgency').value;
+
+        if (!name) { showToast('Enter a task name before saving.'); return; }
+        if (!subject) { showToast('Enter a subject before saving.'); return; }
+
+        if (nameEl) nameEl.textContent = name;
+        if (subjectEl) subjectEl.textContent = subject;
+        if (dueEl) dueEl.textContent = dueLabel;
+        if (urgencyPill) {
+            const urgencyKey = TASK_URGENCY_ORDER.includes(urgency) ? urgency : 'medium';
+            urgencyPill.classList.remove('urgency-low', 'urgency-medium', 'urgency-high');
+            urgencyPill.classList.add(`urgency-${urgencyKey}`);
+            urgencyPill.dataset.urgency = urgencyKey;
+            urgencyPill.textContent = TASK_URGENCY_LABELS[urgencyKey];
+        }
+
+        row.classList.add('flash-highlight');
+        setTimeout(() => row.classList.remove('flash-highlight'), 1600);
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        showToast(`"${name}" updated.`, 'success');
+    };
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+/* "Add Task" form */
+function initAddTaskForm() {
+    const addBtn = document.getElementById('addTaskBtn');
+    if (!addBtn) return;
+
+    addBtn.addEventListener('click', () => {
+        const nameInput = document.getElementById('newTaskName');
+        const subjectInput = document.getElementById('newTaskSubject');
+        const dueInput = document.getElementById('newTaskDue');
+        const urgencyInput = document.getElementById('newTaskUrgency');
+
+        const name = nameInput.value.trim();
+        const subject = subjectInput.value.trim();
+        const urgency = urgencyInput && TASK_URGENCY_ORDER.includes(urgencyInput.value) ? urgencyInput.value : 'medium';
+        const dueLabel = dueInput.value ? formatDateLabel(dueInput.value) : 'No due date';
+
+        if (!name) {
+            showToast('Enter a task name before adding it.');
+            return;
+        }
+        if (!subject) {
+            showToast('Enter a subject before adding it.');
+            return;
+        }
+
+        addTaskRow(name, subject, dueLabel, urgency);
+
+        nameInput.value = '';
+        subjectInput.value = '';
+        dueInput.value = '';
+        if (urgencyInput) urgencyInput.value = 'medium';
+        nameInput.focus();
+
+        showToast(`"${name}" added to your task list.`, 'success');
+    });
+}
+
+/* Inserts a new pending row at the top of the Recent Tasks table. */
+function addTaskRow(name, subject, dueLabel, urgency) {
+    const body = document.querySelector('#tasksTable tbody');
+    if (!body) return;
+
+    const urgencyKey = TASK_URGENCY_ORDER.includes(urgency) ? urgency : 'medium';
+    const row = document.createElement('tr');
+    row.classList.add('flash-highlight');
+    row.innerHTML = `
+        <td class="task-title-cell"><i class="bi bi-journal-text text-primary me-2"></i><span class="task-name">${escapeHtml(name)}</span></td>
+        <td class="task-subject">${escapeHtml(subject)}</td>
+        <td>${escapeHtml(dueLabel)}</td>
+        <td><span class="urgency-pill urgency-${urgencyKey}" data-urgency="${urgencyKey}" role="button" tabindex="0">${TASK_URGENCY_LABELS[urgencyKey]}</span></td>
+        <td><span class="status-pill status-pending" data-status="pending" role="button" tabindex="0">Pending</span></td>
+        <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
+    `;
+    body.insertBefore(row, body.firstChild);
+    setTimeout(() => row.classList.remove('flash-highlight'), 1600);
+}
+
+/* ==========================================================================
+   Page search bars
+   ========================================================================== */
+
+function initPageSearch() {
+    wireListFilter('taskSearch', '#tasksTable tbody tr');
+    wireListFilter('attendanceSearch', '#attendanceLogTable tbody tr');
+    initAssignmentsExamsTabs();
+    initPageSearchPopup();
+}
+
+/* ==========================================================================
+ Assignments & Exams page
+   ========================================================================== */
+function initAssignmentsExamsTabs() {
+    const tabs = document.querySelectorAll('#aeTabs .ae-tab');
+    const list = document.getElementById('aeList');
+    if (!tabs.length || !list) return;
+
+    let items = Array.from(document.querySelectorAll('.ae-item'));
+
+    const params = new URLSearchParams(window.location.search);
+    let activeType = params.get('type') === 'exam' ? 'exam' : (params.get('type') === 'assignment' ? 'assignment' : 'all');
+
+    const heading = document.getElementById('aeHeading');
+    const headingIcon = document.getElementById('aeHeadingIcon');
+    const headingText = document.getElementById('aeHeadingText');
+    const searchInput = document.getElementById('itemSearch');
+    const noResults = document.getElementById('itemSearchNoResults');
+
+    function updateHeading() {
+        if (!heading) return;
+        const label = activeType === 'exam' ? 'Exams'
+            : activeType === 'assignment' ? 'Assignments'
+            : 'Assignments & Exams';
+        const iconClass = activeType === 'exam' ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-book-open';
+        if (headingText) headingText.textContent = label;
+        if (headingIcon) headingIcon.className = iconClass;
+    }
+
+    function emptyMessageFor(type) {
+        if (type === 'exam') return { icon: 'fa-solid fa-champagne-glasses', text: 'No upcoming exams.' };
+        if (type === 'assignment') return { icon: 'fa-solid fa-circle-check', text: "You're all caught up! No assignments pending." };
+        return { icon: 'fa-solid fa-circle-check', text: "You're all caught up! Nothing due right now." };
+    }
+
+    function render() {
+        const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        let visible = 0;
+        tabs.forEach(t => t.classList.toggle('active', t.dataset.type === activeType));
+        items.forEach(item => {
+            const typeOk = activeType === 'all' || item.dataset.type === activeType;
+            const textOk = !q || item.textContent.toLowerCase().includes(q);
+            const show = typeOk && textOk;
+            item.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        if (noResults) {
+            if (visible === 0) {
+                if (q) {
+                    noResults.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Nothing matches your search.';
+                } else {
+                    const msg = emptyMessageFor(activeType);
+                    noResults.innerHTML = `<i class="${msg.icon}"></i> ${msg.text}`;
+                }
+                noResults.style.display = 'block';
+            } else {
+                noResults.style.display = 'none';
+            }
+        }
+    }
+
+    function refreshItems() {
+        items = Array.from(document.querySelectorAll('.ae-item'));
+        render();
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            activeType = tab.dataset.type;
+            updateHeading();
+            render();
+        });
+    });
+
+    if (searchInput) searchInput.addEventListener('input', render);
+
+    initAddAeForm(refreshItems);
+
+    list.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.action-edit-btn');
+        if (editBtn) { openEditAeModal(editBtn.closest('.ae-item'), refreshItems); return; }
+        const delBtn = e.target.closest('.log-delete-btn');
+        if (delBtn) {
+            const item = delBtn.closest('.ae-item');
+            const title = item.querySelector('h6')?.textContent || 'Item';
+            item.remove();
+            showToast(`"${title}" deleted.`);
+            refreshItems();
+        }
+    });
+
+    updateHeading();
+    render();
+}
+
+/* Opens the Edit Assignment/Exam modal pre-filled with the given item's current values. */
+function openEditAeModal(item, onSaved) {
+    const modalEl = document.getElementById('editAeModal');
+    if (!item || !modalEl || typeof bootstrap === 'undefined') return;
+
+    const titleEl = item.querySelector('h6');
+    const smallEl = item.querySelector('small');
+    const [currentSubject, currentDue] = smallEl ? smallEl.textContent.split('•').map(s => s.trim()) : ['', ''];
+
+    document.getElementById('editAeName').value = titleEl ? titleEl.textContent.trim() : '';
+    document.getElementById('editAeSubject').value = currentSubject || '';
+    document.getElementById('editAeDue').value = currentDue || '';
+    document.getElementById('editAeType').value = item.dataset.type === 'exam' ? 'exam' : 'assignment';
+
+    const saveBtn = document.getElementById('editAeSaveBtn');
+    saveBtn.onclick = () => {
+        const name = document.getElementById('editAeName').value.trim();
+        const subject = document.getElementById('editAeSubject').value.trim();
+        const dueLabel = document.getElementById('editAeDue').value.trim() || 'No due date';
+        const type = document.getElementById('editAeType').value === 'exam' ? 'exam' : 'assignment';
+
+        if (!name) { showToast('Enter a title before saving.'); return; }
+        if (!subject) { showToast('Enter a subject before saving.'); return; }
+
+        const isExam = type === 'exam';
+        item.dataset.type = isExam ? 'exam' : 'assignment';
+        if (titleEl) titleEl.textContent = name;
+        if (smallEl) smallEl.textContent = `${subject} • ${dueLabel}`;
+
+        const iconWrap = item.querySelector('.event-icon');
+        if (iconWrap) {
+            iconWrap.classList.remove('bg-purple', 'bg-danger');
+            iconWrap.classList.add(isExam ? 'bg-danger' : 'bg-purple');
+            const icon = iconWrap.querySelector('i');
+            if (icon) icon.className = `bi ${isExam ? 'bi-pencil-square' : 'bi-journal-text'}`;
+        }
+
+        item.classList.add('flash-highlight');
+        setTimeout(() => item.classList.remove('flash-highlight'), 1600);
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        showToast(`"${name}" updated.`, 'success');
+        if (onSaved) onSaved();
+    };
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+/* "Add Assignment / Exam" form */
+function initAddAeForm(onItemAdded) {
+    const addBtn = document.getElementById('addAeBtn');
+    if (!addBtn) return;
+
+    addBtn.addEventListener('click', () => {
+        const nameInput = document.getElementById('newAeName');
+        const subjectInput = document.getElementById('newAeSubject');
+        const typeInput = document.getElementById('newAeType');
+        const dueInput = document.getElementById('newAeDue');
+
+        const name = nameInput.value.trim();
+        const subject = subjectInput.value.trim();
+        const type = typeInput && typeInput.value === 'exam' ? 'exam' : 'assignment';
+        const dueLabel = dueInput.value ? `Due ${formatDateLabel(dueInput.value)}` : 'No due date';
+
+        if (!name) {
+            showToast('Enter a title before adding it.');
+            return;
+        }
+        if (!subject) {
+            showToast('Enter a subject before adding it.');
+            return;
+        }
+
+        addAeItem(name, subject, dueLabel, type);
+
+        nameInput.value = '';
+        subjectInput.value = '';
+        dueInput.value = '';
+        if (typeInput) typeInput.value = 'assignment';
+        nameInput.focus();
+
+        showToast(`"${name}" added to your ${type === 'exam' ? 'exams' : 'assignments'}.`, 'success');
+        if (onItemAdded) onItemAdded();
+    });
+}
+
+/* Inserts a new assignment/exam entry at the top of the Assignments & Exams list. */
+function addAeItem(name, subject, dueLabel, type) {
+    const list = document.getElementById('aeList');
+    if (!list) return;
+
+    const isExam = type === 'exam';
+    const item = document.createElement('div');
+    item.className = 'event-item ae-item flash-highlight';
+    item.dataset.type = isExam ? 'exam' : 'assignment';
+    item.innerHTML = `
+        <div class="event-icon ${isExam ? 'bg-danger' : 'bg-purple'}"><i class="bi ${isExam ? 'bi-pencil-square' : 'bi-journal-text'}"></i></div>
+        <div><h6>${escapeHtml(name)}</h6><small>${escapeHtml(subject)} • ${escapeHtml(dueLabel)}</small></div>
+        <div class="ae-actions"><button class="action-edit-btn" aria-label="Edit item"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete item"><i class="bi bi-trash"></i></button></div>
+    `;
+    list.insertBefore(item, list.firstChild);
+    setTimeout(() => item.classList.remove('flash-highlight'), 1600);
+}
+
+function wireListFilter(inputId, itemSelector) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const items = document.querySelectorAll(itemSelector);
+    const noResults = document.getElementById(inputId + 'NoResults');
+
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        let visibleCount = 0;
+        items.forEach(item => {
+            const matches = item.textContent.toLowerCase().includes(q);
+            item.style.display = matches ? '' : 'none';
+            if (matches) visibleCount++;
+        });
+        if (noResults) noResults.style.display = (q && visibleCount === 0) ? 'block' : 'none';
+    });
+}
+
+/* Navbar search icon -> popup search bar (used on Tasks, Assignments & Exams, Attendance) */
+function initPageSearchPopup() {
+    const toggle = document.getElementById('pageSearchToggle');
+    const popup = document.getElementById('pageSearchPopup');
+    if (!toggle || !popup) return;
+
+    const input = popup.querySelector('input');
+
+    const openPopup = () => {
+        popup.classList.add('open');
+        toggle.classList.add('active');
+        if (input) setTimeout(() => input.focus(), 50);
+    };
+    const closePopup = () => {
+        popup.classList.remove('open');
+        toggle.classList.remove('active');
+    };
+
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popup.classList.contains('open') ? closePopup() : openPopup();
+    });
+
+    popup.addEventListener('click', (e) => e.stopPropagation());
+
+    document.addEventListener('click', () => closePopup());
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closePopup();
+    });
+}
+
+function bumpCompletedCount(delta) {
+    const el = document.getElementById('statCompleted');
+    if (!el) return;
+    const current = parseInt(el.textContent, 10) || 0;
+    const next = Math.max(0, current + delta);
+    el.textContent = next;
+    el.dataset.count = next;
+    pulseCard(el);
 }
 
 /* ==========================================================================
@@ -1059,6 +1452,815 @@ function initProgressAnimations() {
     }, { threshold: 0.2 });
 
     bars.forEach(bar => observer.observe(bar));
+}
+
+/* ==========================================================================
+   Study Planner
+   Auto-builds a weekly schedule out of three sources:
+     1. The lecture timetable
+     2. "Fixed" items - assignments/exams/tasks with a day + time.
+     3. Auto-generated study sessions 
+   ========================================================================== */
+
+const PLANNER_STATE_KEY = 'levelup-planner-state';
+const PLANNER_HOURS_KEY = 'levelup-planner-hours';
+const PLANNER_REST_KEY = 'levelup-planner-rest-on-holidays';
+
+function loadRestOnHolidays() {
+    try { return localStorage.getItem(PLANNER_REST_KEY) === 'true'; } catch { return false; }
+}
+function saveRestOnHolidays(value) {
+    try { 
+        localStorage.setItem(PLANNER_REST_KEY, value ? 'true' : 'false'); 
+    } catch { /* storage unavailable! preference just won't persist across reloads */ }
+}
+const PLANNER_DAY_START_DEFAULT = 7 * 60;  // 07:00, in minutes since midnight
+const PLANNER_DAY_END_DEFAULT = 22 * 60;   // 22:00
+
+/* The student's own working-hours preference */
+let PLANNER_DAY_START = PLANNER_DAY_START_DEFAULT;
+let PLANNER_DAY_END = PLANNER_DAY_END_DEFAULT;
+
+function loadPlannerHours() {
+    try {
+        const raw = localStorage.getItem(PLANNER_HOURS_KEY);
+        if (!raw) return null;
+        const { start, end } = JSON.parse(raw);
+        return { start, end };
+    } catch { return null; }
+}
+
+function savePlannerHours(startHHMM, endHHMM) {
+    try { localStorage.setItem(PLANNER_HOURS_KEY, JSON.stringify({ start: startHHMM, end: endHHMM })); } catch { /* storage unavailable! preference just won't persist across reloads */ }
+}
+const STUDY_HOURS_PER_SUBJECT_PER_WEEK = 2;
+const STUDY_BLOCK_MINUTES = 60;
+
+/* Exam-prep tuning */
+const EXAM_PREP_BONUS_MINUTES = 180; // +3 hours of dedicated exam-prep study
+
+/* "Don't overwork them" rules */
+const STUDY_SESSION_GAP_MINUTES = 30;      // breather enforced right after every generated study block
+const MAX_STUDY_MINUTES_PER_DAY = 120;     // normal-week cap so sessions spread across days instead of piling on one
+const MAX_EXAM_PREP_MINUTES_PER_DAY = 180; // slightly higher cap allowed only on the run-up to an exam
+
+const PLANNER_TYPE_META = {
+    lecture:    { icon: 'bi-book' },
+    study:      { icon: 'bi-lightbulb' },
+    assignment: { icon: 'bi-journal-text' },
+    exam:       { icon: 'bi-pencil-square' },
+    task:       { icon: 'bi-check2-square' }
+};
+
+const PLANNER_SEED_EVENTS = [
+    { id: 'seed-1', title: 'Database ER Diagram', subject: 'Database Systems', type: 'assignment', priority: 'high', day: 'Mon', start: '14:00', end: '15:00' },
+    { id: 'seed-2', title: 'DSA Assignment 3', subject: 'Data Structures & Algorithms', type: 'assignment', priority: 'medium', day: 'Wed', start: '14:00', end: '15:00' },
+    { id: 'seed-3', title: 'OOP Lab Exercise 4', subject: 'Object Oriented Programming', type: 'assignment', priority: 'low', day: 'Thu', start: '14:00', end: '15:00' },
+    { id: 'seed-4', title: 'Revise OOP Inheritance Notes', subject: 'Object Oriented Programming', type: 'task', priority: 'medium', day: 'Tue', start: '16:00', end: '17:00' },
+    { id: 'seed-5', title: 'Organize Rotaract Event Notes', subject: 'General', type: 'task', priority: 'low', day: 'Sat', start: '13:00', end: '14:00' },
+    { id: 'seed-6', title: 'Statistics Quiz', subject: 'Inferential Statistics', type: 'exam', priority: 'high', day: 'Sat', start: '10:00', end: '11:00' },
+    { id: 'seed-7', title: 'Linear Algebra Midterm', subject: 'Linear Algebra', type: 'exam', priority: 'high', day: 'Sat', start: '10:00', end: '11:00' },
+    { id: 'seed-8', title: 'DSA Final', subject: 'Data Structures & Algorithms', type: 'exam', priority: 'high', day: 'Thu', start: '14:00', end: '16:00' }
+];
+
+function initStudyPlanner() {
+    const currentMonday = getMondayISO(new Date());
+
+    const savedHours = loadPlannerHours();
+    if (savedHours) {
+        PLANNER_DAY_START = timeToMinutes(savedHours.start);
+        PLANNER_DAY_END = timeToMinutes(savedHours.end);
+    }
+
+    let state = loadPlannerState();
+    let restOnHolidays = loadRestOnHolidays();
+
+    try {
+        if (!state) {
+            state = { weekStart: currentMonday, ...generateWeekSchedule({ includeSeed: true, restOnHolidays }) };
+            savePlannerState(state);
+        } else if (state.weekStart !== currentMonday) {
+            const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
+            state = { weekStart: currentMonday, ...generateWeekSchedule({ carryStudyMinutes, carryMovable, carryUserMoved, restOnHolidays }) };
+            savePlannerState(state);
+            showToast('New week: your planner was regenerated and any missed sessions carried forward.', 'success', 5200);
+        }
+
+        renderPlannerLegend();
+        renderPlanner(state);
+    } catch (err) {
+        // Cached planner data from an earlier version of the app (or a corrupted
+        // save) can't be trusted - wipe it and rebuild a fresh week rather than
+        // leaving the page stuck with a half-wired planner (buttons that were
+        // never attached because we threw before reaching them below).
+        console.error('Study Planner: cached state was invalid, rebuilding a fresh week.', err);
+        try { localStorage.removeItem(PLANNER_STATE_KEY); } catch { /* storage unavailable */ }
+        state = { weekStart: currentMonday, ...generateWeekSchedule({ includeSeed: true, restOnHolidays }) };
+        savePlannerState(state);
+        renderPlannerLegend();
+        renderPlanner(state);
+        showToast('Your study planner data looked out of date, so it was rebuilt fresh.', 'success', 5200);
+    }
+
+    const regenBtn = document.getElementById('plannerRegenerateBtn');
+    const regenerateModalEl = document.getElementById('regenerateWeekModal');
+
+    function runRegenerate(wantsMoreRest) {
+        restOnHolidays = wantsMoreRest;
+        saveRestOnHolidays(restOnHolidays);
+        const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
+        state = { weekStart: currentMonday, ...generateWeekSchedule({ carryStudyMinutes, carryMovable, carryUserMoved, restOnHolidays }) };
+        savePlannerState(state);
+        renderPlanner(state);
+        showToast(wantsMoreRest ? 'Planner regenerated, free weekends left open to rest.' : 'Planner regenerated for this week.', 'success');
+    }
+
+    if (regenBtn) {
+        regenBtn.addEventListener('click', () => {
+            if (regenerateModalEl && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(regenerateModalEl).show();
+            } else {
+                runRegenerate(restOnHolidays); // no modal available! fall back to last-known preference
+            }
+        });
+    }
+    const regenMoreRestBtn = document.getElementById('regenerateMoreRestBtn');
+    if (regenMoreRestBtn) regenMoreRestBtn.addEventListener('click', () => runRegenerate(true));
+    const regenNoRestBtn = document.getElementById('regenerateNoRestBtn');
+    if (regenNoRestBtn) regenNoRestBtn.addEventListener('click', () => runRegenerate(false));
+
+    /* Working-hours preference */
+    const hoursStartInput = document.getElementById('plannerDayStart');
+    const hoursEndInput = document.getElementById('plannerDayEnd');
+    if (hoursStartInput && hoursEndInput) {
+        hoursStartInput.value = minutesToTime(PLANNER_DAY_START);
+        hoursEndInput.value = minutesToTime(PLANNER_DAY_END);
+    }
+
+    const hoursApplyBtn = document.getElementById('plannerHoursApplyBtn');
+    if (hoursApplyBtn) {
+        hoursApplyBtn.addEventListener('click', () => {
+            const startVal = hoursStartInput.value;
+            const endVal = hoursEndInput.value;
+            if (!startVal || !endVal) {
+                showToast('Set both a start and end time.');
+                return;
+            }
+            const startMin = timeToMinutes(startVal);
+            const endMin = timeToMinutes(endVal);
+            if (endMin <= startMin) {
+                showToast('End time must be after the start time! use 11:59 PM for midnight.');
+                return;
+            }
+            if (endMin - startMin < 120) {
+                showToast('Leave yourself at least a couple of hours to work with.');
+                return;
+            }
+
+            PLANNER_DAY_START = startMin;
+            PLANNER_DAY_END = endMin;
+            savePlannerHours(startVal, endVal);
+
+            const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
+            state = { weekStart: currentMonday, ...generateWeekSchedule({ carryStudyMinutes, carryMovable, carryUserMoved, restOnHolidays }) };
+            savePlannerState(state);
+            renderPlanner(state);
+            showToast(`Study hours set to ${formatTimeRange(startVal, endVal)} ! sessions rebuilt around it.`, 'success');
+        });
+    }
+
+    const grid = document.getElementById('plannerTable');
+    if (grid) {
+        grid.addEventListener('click', (e) => {
+            // Only study/exam-prep sessions the app generated can be moved 
+            // lectures are locked out entirely, and other item types don't
+            const moveBtn = e.target.closest('.planner-move-btn');
+            if (moveBtn) {
+                e.stopPropagation();
+                openMoveSessionModal(moveBtn.closest('.planner-block').dataset.id);
+                return;
+            }
+
+            const block = e.target.closest('.planner-block[data-toggle="done"]');
+            if (!block) return;
+            const id = block.dataset.id;
+            const item = state.fixedItems.find(i => i.id === id) || state.studySessions.find(i => i.id === id);
+            if (!item) return;
+            item.done = !item.done;
+            savePlannerState(state);
+            renderPlanner(state);
+        });
+    }
+
+    /* Banner actions for a user-added session that overlaps something:
+       "Keep it as is" just dismisses the notice (the session stays right
+       where the student put it); "Change time" opens the same move modal
+       used elsewhere, pre-filtered to actually-free slots. */
+    const bannerEl = document.getElementById('plannerBanner');
+    if (bannerEl) {
+        bannerEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-overlap-action]');
+            if (!btn) return;
+            const sessionId = btn.dataset.sessionId;
+            const session = state.studySessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            if (btn.dataset.overlapAction === 'keep') {
+                session.hasOverlap = false;
+                savePlannerState(state);
+                renderPlannerBanner(state);
+                showToast(`Kept "${session.title}" where it is.`, 'success');
+            } else if (btn.dataset.overlapAction === 'change') {
+                openMoveSessionModal(sessionId);
+            }
+        });
+    }
+
+    /* ---- Move-session modal: reschedule a single generated study/exam-prep
+       block to another free day+time. Lectures never appear here, this
+       modal only ever opens for state.studySessions entries. ---- */
+    function buildBusyByDayExcluding(excludeId) {
+        const busyByDay = {};
+        DAY_ORDER.forEach(d => busyByDay[d] = []);
+        timetableLectures.forEach(l => addBusy(busyByDay, l.day, timeToMinutes(l.start), timeToMinutes(l.end), `${l.mainSubject} ${l.module}`));
+        state.fixedItems.forEach(i => addBusy(busyByDay, i.day, timeToMinutes(i.start), timeToMinutes(i.end), i.title));
+        state.studySessions.forEach(s => {
+            if (s.id === excludeId) return;
+            const en = timeToMinutes(s.end);
+            addBusy(busyByDay, s.day, timeToMinutes(s.start), en, s.title);
+            addBusy(busyByDay, s.day, en, en + STUDY_SESSION_GAP_MINUTES, 'study break'); // keep the breather rule when moving too
+        });
+        return busyByDay;
+    }
+
+    function populateMoveTimeOptions(session, busyByDay) {
+        const timeSelect = document.getElementById('moveSessionTime');
+        if (!timeSelect) return;
+        const day = document.getElementById('moveSessionDay').value;
+        const duration = timeToMinutes(session.end) - timeToMinutes(session.start);
+        const options = [];
+        for (let t = PLANNER_DAY_START; t + duration <= PLANNER_DAY_END; t += SLOT_MINUTES) {
+            if (isFreeSlot(day, t, t + duration, busyByDay)) options.push(t);
+        }
+        timeSelect.innerHTML = options.length
+            ? options.map(t => `<option value="${t}">${formatTimeRange(minutesToTime(t), minutesToTime(t + duration))}</option>`).join('')
+            : '<option value="" disabled selected>No free slots this day</option>';
+    }
+
+    function openMoveSessionModal(sessionId) {
+        const session = state.studySessions.find(s => s.id === sessionId);
+        if (!session) return;
+
+        const modalEl = document.getElementById('moveSessionModal');
+        if (!modalEl || typeof bootstrap === 'undefined') return;
+
+        document.getElementById('moveSessionTitle').textContent = session.title;
+        const daySelect = document.getElementById('moveSessionDay');
+        daySelect.innerHTML = DAY_ORDER.map(d => `<option value="${d}" ${d === session.day ? 'selected' : ''}>${dayFullName(d)}</option>`).join('');
+
+        const busyByDay = buildBusyByDayExcluding(sessionId);
+        populateMoveTimeOptions(session, busyByDay);
+
+        daySelect.onchange = () => populateMoveTimeOptions(session, busyByDay);
+
+        const confirmBtn = document.getElementById('moveSessionConfirmBtn');
+        confirmBtn.onclick = () => {
+            const day = daySelect.value;
+            const timeSelect = document.getElementById('moveSessionTime');
+            const startMin = timeSelect.value !== '' ? parseInt(timeSelect.value, 10) : null;
+            if (startMin == null) {
+                showToast('No free slot available on that day.');
+                return;
+            }
+            const duration = timeToMinutes(session.end) - timeToMinutes(session.start);
+            session.day = day;
+            session.start = minutesToTime(startMin);
+            session.end = minutesToTime(startMin + duration);
+            session.userMoved = true;
+            session.hasOverlap = false; // modal only offers slots that are actually free
+            savePlannerState(state);
+            renderPlanner(state);
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            showToast(`Moved "${session.title}" to ${dayFullName(day)}, ${formatTimeRange(session.start, session.end)}.`, 'success');
+        };
+
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+}
+
+function isValidPlannerState(state) {
+    return !!state
+        && typeof state.weekStart === 'string'
+        && Array.isArray(state.fixedItems)
+        && Array.isArray(state.studySessions);
+}
+
+function loadPlannerState() {
+    try {
+        const raw = localStorage.getItem(PLANNER_STATE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return isValidPlannerState(parsed) ? parsed : null;
+    } catch { return null; }
+}
+
+function savePlannerState(state) {
+    try { localStorage.setItem(PLANNER_STATE_KEY, JSON.stringify(state)); } catch { /* storage unavailable ! planner still works in-memory for this session */ }
+}
+
+function getMondayISO(d) {
+    const date = new Date(d);
+    const day = date.getDay(); // 0 = Sun ... 6 = Sat
+    const diff = (day === 0 ? -6 : 1) - day;
+    date.setDate(date.getDate() + diff);
+    date.setHours(0, 0, 0, 0);
+    return date.toISOString().slice(0, 10);
+}
+
+/* Carries forward anything not marked done */
+function buildCarryOver(prevState) {
+    const carryStudyMinutes = {};
+    const carryUserMoved = [];
+    (prevState.studySessions || []).forEach(s => {
+        if (s.done) return;
+        if (s.userMoved) {
+           
+            carryUserMoved.push({ subject: s.subject, title: s.title, day: s.day, start: s.start, end: s.end, examPrep: !!s.examPrep });
+        } else {
+            carryStudyMinutes[s.subject] = (carryStudyMinutes[s.subject] || 0) + (timeToMinutes(s.end) - timeToMinutes(s.start));
+        }
+    });
+
+    const carryMovable = [];
+    (prevState.fixedItems || []).forEach(item => {
+        if (item.type !== 'exam' && !item.done) {
+            carryMovable.push({
+                title: item.title, subject: item.subject, type: item.type, priority: item.priority,
+                day: item.day, start: null, end: null,
+                duration: timeToMinutes(item.end) - timeToMinutes(item.start)
+            });
+        }
+    });
+
+    return { carryStudyMinutes, carryMovable, carryUserMoved };
+}
+
+function getStudySubjects() {
+    const seen = new Set();
+    const subjects = [];
+    timetableLectures.forEach(l => {
+        if (!seen.has(l.mainSubject)) { seen.add(l.mainSubject); subjects.push(l.mainSubject); }
+    });
+    return subjects;
+}
+
+function subjectFirstLectureDay(subject) {
+    const entries = timetableLectures
+        .filter(l => l.mainSubject === subject)
+        .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
+    return entries.length ? entries[0].day : DAY_ORDER[0];
+}
+
+function nextDayInOrder(day) {
+    const idx = DAY_ORDER.indexOf(day);
+    return DAY_ORDER[(idx + 1) % DAY_ORDER.length];
+}
+
+function rotateDays(startDay) {
+    const idx = DAY_ORDER.indexOf(startDay);
+    if (idx === -1) return [...DAY_ORDER];
+    return [...DAY_ORDER.slice(idx), ...DAY_ORDER.slice(0, idx)];
+}
+
+/* Every day from Monday up to (and including) the given day, used to keep
+   exam-prep sessions landing BEFORE the exam instead of after it. */
+function daysUpTo(day) {
+    const idx = DAY_ORDER.indexOf(day);
+    return idx === -1 ? [...DAY_ORDER] : DAY_ORDER.slice(0, idx + 1);
+}
+
+function isFreeSlot(day, s, en, busyByDay) {
+    return !busyByDay[day].some(b => s < b.end && b.start < en);
+}
+
+function addBusy(busyByDay, day, s, en, label) {
+    busyByDay[day].push({ start: s, end: en, label });
+}
+
+function findFreeSlot(day, duration, busyByDay) {
+    for (let t = PLANNER_DAY_START; t + duration <= PLANNER_DAY_END; t += SLOT_MINUTES) {
+        if (isFreeSlot(day, t, t + duration, busyByDay)) return t;
+    }
+    return null;
+}
+
+/* Places an exam exactly where it's set, exams aren't moved. Any overlap
+   it runs into (another exam, a lecture) is reported as a conflict for
+   the person to resolve manually, since neither side can be safely
+   auto-shifted for them. */
+function placeExam(item, busyByDay, conflicts) {
+    const s = timeToMinutes(item.start), en = timeToMinutes(item.end);
+    const clashes = busyByDay[item.day].filter(b => s < b.end && b.start < en);
+    clashes.forEach(c => {
+        conflicts.push(`"${item.title}" clashes with "${c.label}" on ${dayFullName(item.day)}, ${formatTimeRange(item.start, item.end)}! please move one of these manually.`);
+    });
+    addBusy(busyByDay, item.day, s, en, `${item.title} (exam)`);
+    return { day: item.day, start: item.start, end: item.end };
+}
+
+/* Places a task/assignment. Tries its own preferred day+time first (if it
+   has one); if that's taken, auto-shifts to the next free slot same
+   day first, then later days and reports the shift. */
+function placeMovableItem(item, busyByDay) {
+    const duration = item.duration != null ? item.duration : (timeToMinutes(item.end) - timeToMinutes(item.start));
+    let placement = null;
+    let wasShifted = false;
+
+    if (item.start && item.day) {
+        const s = timeToMinutes(item.start);
+        const en = s + duration;
+        if (isFreeSlot(item.day, s, en, busyByDay)) placement = { day: item.day, start: s, end: en };
+    }
+
+    if (!placement) {
+        wasShifted = true;
+        const startDay = item.day || DAY_ORDER[0];
+        for (const day of rotateDays(startDay)) {
+            const slot = findFreeSlot(day, duration, busyByDay);
+            if (slot != null) { placement = { day, start: slot, end: slot + duration }; break; }
+        }
+    }
+
+    return { placement, wasShifted, duration };
+}
+
+/* Places one generated study/exam-prep block. Tries the given day pool in
+   order (already sorted by whoever's least loaded so sessions spread out
+   instead of stacking), respecting a per-day minute cap so the student
+   isn't overworked. Falls back to ignoring the cap (any free slot, any
+   day) only if that's the sole way to fit the requested time in. */
+function placeStudySessionSpaced(dayPool, duration, busyByDay, dailyStudyMinutes, dayCap) {
+    for (const day of dayPool) {
+        if ((dailyStudyMinutes[day] || 0) + duration > dayCap) continue;
+        const slot = findFreeSlot(day, duration, busyByDay);
+        if (slot != null) return { placement: { day, start: slot, end: slot + duration }, wasShifted: false };
+    }
+    for (const day of [...dayPool, ...DAY_ORDER.filter(d => !dayPool.includes(d))]) {
+        const slot = findFreeSlot(day, duration, busyByDay);
+        if (slot != null) return { placement: { day, start: slot, end: slot + duration }, wasShifted: true };
+    }
+    return { placement: null, wasShifted: true };
+}
+
+function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carryUserMoved = [], includeSeed = false, restOnHolidays = false } = {}) {
+    const busyByDay = {};
+    DAY_ORDER.forEach(d => busyByDay[d] = []);
+    timetableLectures.forEach(l => addBusy(busyByDay, l.day, timeToMinutes(l.start), timeToMinutes(l.end), `${l.mainSubject} ${l.module}`));
+
+    const conflicts = [];
+    const shiftNotes = [];
+    const unscheduledRaw = []; // raw failures, deduped+counted into `unscheduled` just before returning
+    const fixedItems = [];
+    let nextId = 1;
+
+    const seedSource = includeSeed ? PLANNER_SEED_EVENTS.map(e => ({ ...e })) : [];
+    const exams = seedSource.filter(e => e.type === 'exam');
+    const movableAll = [...seedSource.filter(e => e.type !== 'exam'), ...carryMovable];
+
+    exams.forEach(e => {
+        const placement = placeExam(e, busyByDay, conflicts);
+        fixedItems.push({ id: `F${nextId++}`, title: e.title, subject: e.subject, type: e.type, priority: e.priority, done: false, ...placement });
+    });
+
+    movableAll.forEach(item => {
+        const { placement, wasShifted, duration } = placeMovableItem(item, busyByDay);
+        if (!placement) {
+            unscheduledRaw.push({ key: `movable:${item.title}`, kind: 'movable', label: item.title });
+            return;
+        }
+        addBusy(busyByDay, placement.day, placement.start, placement.end, item.title);
+        if (wasShifted) {
+            shiftNotes.push(`"${item.title}" was auto-shifted to ${dayFullName(placement.day)}, ${formatTimeRange(minutesToTime(placement.start), minutesToTime(placement.end))} to avoid a clash.`);
+        }
+        fixedItems.push({
+            id: `F${nextId++}`, title: item.title, subject: item.subject, type: item.type, priority: item.priority, done: false,
+            day: placement.day, start: minutesToTime(placement.start), end: minutesToTime(placement.end)
+        });
+    });
+
+    const examDayBySubject = {};
+    exams.forEach(e => {
+        const existing = examDayBySubject[e.subject];
+        if (!existing || DAY_ORDER.indexOf(e.day) < DAY_ORDER.indexOf(existing)) examDayBySubject[e.subject] = e.day;
+    });
+
+    const studySessions = [];
+    let studyId = 1;
+    const dailyStudyMinutes = {}; // generated-study minutes only, used to keep any single day from being overloaded
+    const reservedMinutesBySubject = {}; // minutes already covered by sessions the student manually moved
+
+    carryUserMoved.forEach(m => {
+        const s = timeToMinutes(m.start), en = timeToMinutes(m.end);
+        // A user-placed session's own time is respected even if something
+        // else now lands on it (e.g. carried forward across weeks and a
+        // new lecture/task claimed that slot) - it's kept right where the
+        // student put it, and the specific overlap is surfaced so they can
+        // decide whether to leave it or move it, rather than silently
+        // auto-relocating something they chose themselves.
+        const clashes = busyByDay[m.day].filter(b => s < b.end && b.start < en);
+
+        addBusy(busyByDay, m.day, s, en, `${m.subject} Study Session`);
+        addBusy(busyByDay, m.day, en, en + STUDY_SESSION_GAP_MINUTES, `${m.subject} study break`);
+        dailyStudyMinutes[m.day] = (dailyStudyMinutes[m.day] || 0) + (en - s);
+        reservedMinutesBySubject[m.subject] = (reservedMinutesBySubject[m.subject] || 0) + (en - s);
+
+        studySessions.push({
+            id: `S${studyId++}`, subject: m.subject, type: 'study', title: m.title,
+            priority: m.examPrep ? 'high' : null, done: false, examPrep: !!m.examPrep, userMoved: true,
+            day: m.day, start: m.start, end: m.end,
+            hasOverlap: clashes.length > 0,
+            overlapWith: clashes.map(c => c.label)
+        });
+    });
+
+    getStudySubjects().forEach(subject => {
+        const examDay = examDayBySubject[subject];
+        const isExamPrep = !!examDay;
+        const totalMinutes = Math.max(0,
+            STUDY_HOURS_PER_SUBJECT_PER_WEEK * 60
+            + (carryStudyMinutes[subject] || 0)
+            + (isExamPrep ? EXAM_PREP_BONUS_MINUTES : 0)
+            - (reservedMinutesBySubject[subject] || 0)
+        );
+
+        const blocks = [];
+        let remaining = totalMinutes;
+        while (remaining > 0) {
+            blocks.push(Math.min(STUDY_BLOCK_MINUTES, remaining));
+            remaining -= Math.min(STUDY_BLOCK_MINUTES, remaining);
+        }
+        if (!blocks.length) return;
+
+     
+        const dayPool = isExamPrep ? daysUpTo(examDay) : rotateDays(nextDayInOrder(subjectFirstLectureDay(subject)));
+        const dayCap = isExamPrep ? MAX_EXAM_PREP_MINUTES_PER_DAY : MAX_STUDY_MINUTES_PER_DAY;
+
+        blocks.forEach(len => {
+            const orderedDays = [...dayPool].sort((a, b) => {
+                const loadDiff = (dailyStudyMinutes[a] || 0) - (dailyStudyMinutes[b] || 0);
+                if (loadDiff !== 0) return loadDiff;
+                return (isWeekend(a) ? 0 : 1) - (isWeekend(b) ? 0 : 1);
+            });
+            const { placement, wasShifted } = placeStudySessionSpaced(orderedDays, len, busyByDay, dailyStudyMinutes, dayCap);
+            if (!placement) {
+                unscheduledRaw.push({ key: `study:${subject}:${isExamPrep}`, kind: 'study', subject, isExamPrep });
+                return;
+            }
+
+            addBusy(busyByDay, placement.day, placement.start, placement.end, `${subject} Study Session`);
+            addBusy(busyByDay, placement.day, placement.end, placement.end + STUDY_SESSION_GAP_MINUTES, `${subject} study break`);
+            dailyStudyMinutes[placement.day] = (dailyStudyMinutes[placement.day] || 0) + len;
+
+            studySessions.push({
+                id: `S${studyId++}`, subject, type: 'study',
+                title: isExamPrep ? `${subject} Exam Prep` : `${subject} Study Session`,
+                priority: isExamPrep ? 'high' : null, done: false, examPrep: isExamPrep, userMoved: false,
+                day: placement.day, start: minutesToTime(placement.start), end: minutesToTime(placement.end)
+            });
+        });
+    });
+
+    const subjectsForFill = getStudySubjects();
+    DAY_ORDER.forEach(day => {
+        if (isWeekend(day) && restOnHolidays) return;
+        if (!subjectsForFill.length) return;
+
+        const wasEmptyBefore = busyByDay[day].length === 0;
+        let added = 0;
+        let subjectCursor = 0;
+        let safety = 0; // guards against ever looping forever
+        const maxIterations = subjectsForFill.length * 50;
+
+        while (safety++ < maxIterations) {
+            const slot = findFreeSlot(day, STUDY_BLOCK_MINUTES, busyByDay);
+            if (slot == null) break;
+
+            const rotation = subjectsForFill.slice().sort((a, b) => {
+                const aDay = examDayBySubject[a];
+                const bDay = examDayBySubject[b];
+                const aUpcoming = (aDay && DAY_ORDER.indexOf(day) <= DAY_ORDER.indexOf(aDay)) ? 0 : 1;
+                const bUpcoming = (bDay && DAY_ORDER.indexOf(day) <= DAY_ORDER.indexOf(bDay)) ? 0 : 1;
+                return aUpcoming - bUpcoming;
+            });
+            const subject = rotation[subjectCursor % rotation.length];
+            subjectCursor++;
+
+            const examDay = examDayBySubject[subject];
+            const isExamPrep = !!examDay && DAY_ORDER.indexOf(day) <= DAY_ORDER.indexOf(examDay);
+
+            addBusy(busyByDay, day, slot, slot + STUDY_BLOCK_MINUTES, `${subject} Study Session`);
+            addBusy(busyByDay, day, slot + STUDY_BLOCK_MINUTES, slot + STUDY_BLOCK_MINUTES + STUDY_SESSION_GAP_MINUTES, `${subject} study break`);
+            dailyStudyMinutes[day] = (dailyStudyMinutes[day] || 0) + STUDY_BLOCK_MINUTES;
+
+            studySessions.push({
+                id: `S${studyId++}`, subject, type: 'study',
+                title: isExamPrep ? `${subject} Exam Prep` : `${subject} Study Session`,
+                priority: isExamPrep ? 'high' : null, done: false, examPrep: isExamPrep, userMoved: false,
+                day, start: minutesToTime(slot), end: minutesToTime(slot + STUDY_BLOCK_MINUTES)
+            });
+            added++;
+        }
+        if (added && wasEmptyBefore) shiftNotes.push(`${dayFullName(day)} was completely free, so its whole study window was filled with review sessions.`);
+    });
+
+    /* Collapse repeat failures (e.g. 10x "DSA study session, week's full")
+       into one line with a count instead of listing the same reason over
+       and over. */
+    const unscheduledGroups = new Map();
+    unscheduledRaw.forEach(u => {
+        const g = unscheduledGroups.get(u.key) || { ...u, count: 0 };
+        g.count++;
+        unscheduledGroups.set(u.key, g);
+    });
+    const unscheduled = [...unscheduledGroups.values()].map(g => {
+        if (g.kind === 'movable') {
+            return g.count === 1
+                ? `Couldn't find a free slot for "${g.label}" this week: your week is fully booked.`
+                : `Couldn't find a free slot for ${g.count} items (e.g. "${g.label}") this week: your week is fully booked.`;
+        }
+        const nounSingular = g.isExamPrep ? 'an exam-prep session' : 'a study session';
+        const nounPlural = g.isExamPrep ? 'exam-prep sessions' : 'study sessions';
+        return g.count === 1
+            ? `Couldn't fit ${nounSingular} for ${g.subject} this week: your week is fully booked.`
+            : `Couldn't fit ${g.count} ${nounPlural} for ${g.subject} this week: your week is fully booked.`;
+    });
+
+    return { fixedItems, studySessions, conflicts, shiftNotes, unscheduled };
+}
+
+function renderPlannerLegend() {
+    const wrap = document.getElementById('plannerSubjectLegend');
+    if (!wrap) return;
+    wrap.innerHTML = getStudySubjects().map(s =>
+        `<span class="planner-legend-item"><span class="planner-swatch" style="background:${getMainSubjectColor(s)}"></span>${escapeHtml(s)}</span>`
+    ).join('');
+}
+
+function renderPlanner(state) {
+    renderPlannerBanner(state);
+    renderPlannerGrid(state);
+    renderPlannerSummary(state);
+}
+
+function renderPlannerBanner(state) {
+    const wrap = document.getElementById('plannerBanner');
+    if (!wrap) return;
+
+    const conflicts = state.conflicts || [];
+    const shifts = state.shiftNotes || [];
+    const unscheduled = state.unscheduled || [];
+    const userOverlaps = (state.studySessions || []).filter(s => s.userMoved && s.hasOverlap);
+
+    if (!conflicts.length && !shifts.length && !unscheduled.length && !userOverlaps.length) {
+        wrap.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    if (userOverlaps.length) {
+        html += `<div class="planner-banner-group planner-banner-conflict">
+            <h6><i class="bi bi-exclamation-triangle-fill"></i> Your sessions overlap with something</h6>
+            <ul>${userOverlaps.map(s => `<li>
+                "${escapeHtml(s.title)}" (${dayFullName(s.day)}, ${formatTimeRange(s.start, s.end)}) overlaps with ${s.overlapWith.map(w => `"${escapeHtml(w)}"`).join(' and ')}.
+                <div class="planner-banner-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-overlap-action="keep" data-session-id="${s.id}">Keep it as is</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-overlap-action="change" data-session-id="${s.id}">Change time</button>
+                </div>
+            </li>`).join('')}</ul>
+        </div>`;
+    }
+    if (conflicts.length) {
+        html += `<div class="planner-banner-group planner-banner-conflict">
+            <h6><i class="bi bi-exclamation-triangle-fill"></i> Overlaps that need your attention</h6>
+            <ul>${conflicts.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+        </div>`;
+    }
+    if (shifts.length) {
+        html += `<div class="planner-banner-group planner-banner-shift">
+            <h6><i class="bi bi-arrow-left-right"></i> Your items auto-rescheduled to avoid clashes</h6>
+            <ul>${shifts.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+        </div>`;
+    }
+    if (unscheduled.length) {
+        html += `<div class="planner-banner-group planner-banner-unscheduled">
+            <h6><i class="bi bi-calendar-x"></i> Couldn't fit everything in</h6>
+            <ul>${unscheduled.map(u => `<li>${escapeHtml(u)}</li>`).join('')}</ul>
+        </div>`;
+    }
+    wrap.innerHTML = html;
+}
+
+function renderPlannerGrid(state) {
+    const table = document.getElementById('plannerTable');
+    if (!table) return;
+
+    const exams = state.fixedItems.filter(i => i.type === 'exam');
+    const others = state.fixedItems.filter(i => i.type !== 'exam');
+    const lectures = timetableLectures.map(l => ({
+        id: `L${l.id}`, title: l.module || l.mainSubject, subject: l.mainSubject, type: 'lecture',
+        priority: null, day: l.day, start: l.start, end: l.end, done: false, locked: true
+    }));
+    const merged = [...exams, ...lectures, ...others, ...state.studySessions];
+
+    if (!merged.length) {
+        table.innerHTML = '<tbody><tr><td class="timetable-empty-cell">Nothing scheduled yet! add lectures to your Timetable first.</td></tr></tbody>';
+        return;
+    }
+
+    let minStart = Math.min(PLANNER_DAY_START, ...merged.map(i => timeToMinutes(i.start)));
+    let maxEnd = Math.max(PLANNER_DAY_END, ...merged.map(i => timeToMinutes(i.end)));
+    minStart = Math.floor(minStart / 60) * 60;
+    maxEnd = Math.ceil(maxEnd / 60) * 60;
+
+    const slotStarts = [];
+    for (let t = minStart; t < maxEnd; t += SLOT_MINUTES) slotStarts.push(t);
+
+    const thead = `<thead><tr><th class="tt-time-head">Time</th>${DAY_ORDER.map(d => `<th>${dayFullName(d)}</th>`).join('')}</tr></thead>`;
+    const consumed = new Set();
+
+    const rows = slotStarts.map(slotStart => {
+        const slotEnd = slotStart + SLOT_MINUTES;
+
+        const cells = DAY_ORDER.map(day => {
+            const key = `${day}|${slotStart}`;
+            if (consumed.has(key)) return '';
+
+            const entry = merged.find(item => {
+                const s = timeToMinutes(item.start);
+                return item.day === day && s >= slotStart && s < slotEnd;
+            });
+
+            if (!entry) return '<td class="tt-cell tt-empty"></td>';
+
+            const entryEnd = timeToMinutes(entry.end);
+            const span = Math.max(1, Math.round((entryEnd - slotStart) / SLOT_MINUTES));
+            for (let s = 1; s < span; s++) consumed.add(`${day}|${slotStart + s * SLOT_MINUTES}`);
+
+            const color = getMainSubjectColor(entry.subject);
+            const meta = PLANNER_TYPE_META[entry.type] || PLANNER_TYPE_META.task;
+            const icon = (entry.type === 'study' && entry.examPrep) ? 'bi-mortarboard-fill' : meta.icon;
+            const doneClass = entry.done ? 'is-done' : '';
+            const toggleAttr = entry.locked ? '' : 'data-toggle="done"';
+            const priorityDot = entry.priority ? `<span class="planner-priority-dot priority-${entry.priority}" title="${entry.priority} priority"></span>` : '';
+            const checkIcon = entry.locked ? '' : `<span class="planner-done-check"><i class="bi ${entry.done ? 'bi-check-circle-fill' : 'bi-circle'}"></i></span>`;
+
+            const moveBtn = (entry.type === 'study' && !entry.locked)
+                ? `<button class="planner-move-btn" data-action="move" aria-label="Move this session" title="Move this session"><i class="bi bi-arrows-move"></i></button>`
+                : '';
+
+            return `
+                <td class="tt-cell" rowspan="${span}">
+                    <div class="planner-block ${doneClass}" data-id="${entry.id}" ${toggleAttr} style="background:${color}22; border-left-color:${color};">
+                        ${checkIcon}
+                        ${moveBtn}
+                        <div class="tt-module"><i class="bi ${icon}"></i> ${escapeHtml(entry.title)}</div>
+                        <div class="tt-subject" style="color:${color}">${escapeHtml(entry.subject)}${priorityDot}</div>
+                        <div class="tt-time-range">${formatTimeRange(entry.start, entry.end)}</div>
+                    </div>
+                </td>`;
+        }).join('');
+
+        return `<tr><td class="tt-time">${formatTime(minutesToTime(slotStart))}</td>${cells}</tr>`;
+    }).join('');
+
+    table.innerHTML = thead + `<tbody>${rows}</tbody>`;
+}
+
+function renderPlannerSummary(state) {
+    const label = document.getElementById('plannerWeekLabel');
+    if (label) {
+        const start = new Date(state.weekStart + 'T00:00:00');
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6); // Mon → Sun
+        const opts = { month: 'short', day: 'numeric' };
+        label.textContent = `Week of ${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
+    }
+
+    const statsEl = document.getElementById('plannerStats');
+    if (statsEl) {
+        const totalStudy = state.studySessions.length;
+        const doneStudy = state.studySessions.filter(s => s.done).length;
+        const totalItems = state.fixedItems.length;
+        const doneItems = state.fixedItems.filter(i => i.done).length;
+
+        if (totalStudy === 0 && totalItems === 0) {
+            statsEl.innerHTML = '<i class="fa-solid fa-book-open"></i> Add your first study session - add lectures on your Timetable and we\'ll build your week.';
+        } else if (totalStudy === 0) {
+            statsEl.innerHTML = `<i class="fa-solid fa-book-open"></i> No study sessions yet this week · ${doneItems}/${totalItems} tasks & deadlines done`;
+        } else {
+            statsEl.textContent = `${doneStudy}/${totalStudy} study sessions done · ${doneItems}/${totalItems} tasks & deadlines done`;
+        }
+    }
 }
 
 /* ==========================================================================
