@@ -1439,6 +1439,97 @@ body.timer-fullscreen-active {
 }
 
 /* ===========================================
+             Settings page
+=========================================== */
+
+.account-avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.avatar-edit-wrap {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+}
+
+.avatar-edit-wrap img {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-card, #fff);
+    background: #6d5dfc;
+    color: #fff;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: .2s;
+    padding: 0;
+}
+
+.avatar-edit-btn:hover { 
+    background: #5a4ae0; 
+}
+
+.settings-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+}
+
+@media (max-width: 576px) {
+    .settings-form-grid { grid-template-columns: 1fr; }
+}
+
+.settings-divider {
+    border: none;
+    border-top: 1px solid var(--border-soft);
+    margin: 8px 0 20px;
+}
+
+.settings-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--bg-soft);
+}
+
+.settings-toggle-row .form-switch .form-check-input {
+    width: 42px;
+    height: 24px;
+    cursor: pointer;
+}
+
+body[data-theme="dark"] .settings-toggle-row .form-check-input {
+    background-color: #2a2e4a;
+    border-color: var(--border-soft);
+}
+
+body[data-theme="dark"] .settings-toggle-row .form-check-input:checked {
+    background-color: #6d5dfc;
+    border-color: #6d5dfc;
+}
+
+
+/* ===========================================
      Mobile menu toggle / sidebar drawer
 =========================================== */
 

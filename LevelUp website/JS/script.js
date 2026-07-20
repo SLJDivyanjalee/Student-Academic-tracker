@@ -1239,3 +1239,206 @@ function renderStudyHoursChart() {
     });
 }
 
+/* ==========================================================================
+   Settings - account details (name / email / faculty / semester / avatar)
+   ========================================================================== */
+
+const PROFILE_NAME_KEY = 'levelup-profile-name';
+const PROFILE_FACULTY_KEY = 'levelup-profile-faculty';
+const PROFILE_EMAIL_KEY = 'levelup-profile-email';
+const PROFILE_SEMESTER_KEY = 'levelup-profile-semester';
+const PROFILE_AVATAR_KEY = 'levelup-profile-avatar';
+const DEFAULT_PROFILE_NAME = 'Sunil';
+const DEFAULT_PROFILE_FACULTY = 'Computer Science';
+const DEFAULT_PROFILE_SEMESTER = 'Semester 3';
+
+/* Swaps the dashboard's greeting based on the visitor's current local time. */
+function applyTimeBasedGreeting() {
+    const greetingTitle = document.getElementById('greetingTitle');
+    if (!greetingTitle) return;
+
+    const text = greetingTitle.textContent;
+    const match = text.match(/^Good (Morning|Afternoon|Evening)/);
+    if (!match) return;
+
+    const hour = new Date().getHours();
+    let timeGreeting = 'Good Evening';
+    if (hour < 12) timeGreeting = 'Good Morning';
+    else if (hour < 17) timeGreeting = 'Good Afternoon';
+
+    greetingTitle.textContent = text.replace(match[0], timeGreeting);
+}
+
+/* Applies the saved name/faculty/avatar to every navbar profile chip on every page. */
+function applyProfileSettings() {
+    const savedName = localStorage.getItem(PROFILE_NAME_KEY);
+    const savedFaculty = localStorage.getItem(PROFILE_FACULTY_KEY);
+    const savedAvatar = localStorage.getItem(PROFILE_AVATAR_KEY);
+
+    if (savedName) {
+        document.querySelectorAll('.profile h6').forEach(el => el.textContent = savedName);
+
+        const greetingTitle = document.getElementById('greetingTitle');
+        if (greetingTitle && greetingTitle.textContent.includes(DEFAULT_PROFILE_NAME)) {
+            greetingTitle.textContent = greetingTitle.textContent.replace(DEFAULT_PROFILE_NAME, savedName);
+        }
+    }
+
+    if (savedFaculty) {
+        document.querySelectorAll('.profile small').forEach(el => el.textContent = savedFaculty);
+    }
+
+    if (savedAvatar) {
+        document.querySelectorAll('.profile img').forEach(el => el.src = savedAvatar);
+        const settingsAvatar = document.getElementById('settingsProfileAvatar');
+        if (settingsAvatar) settingsAvatar.src = savedAvatar;
+    }
+}
+
+function initSettingsPage() {
+    const nameInput = document.getElementById('profileNameInput');
+    const facultyInput = document.getElementById('profileFacultyInput');
+    const emailInput = document.getElementById('profileEmailInput');
+    const semesterInput = document.getElementById('profileSemesterInput');
+    const newPasswordInput = document.getElementById('newPasswordInput');
+    const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+    const saveBtn = document.getElementById('saveProfileBtn');
+    if (!nameInput || !facultyInput || !saveBtn) return;
+
+    nameInput.value = localStorage.getItem(PROFILE_NAME_KEY) || DEFAULT_PROFILE_NAME;
+    facultyInput.value = localStorage.getItem(PROFILE_FACULTY_KEY) || DEFAULT_PROFILE_FACULTY;
+    if (emailInput) emailInput.value = localStorage.getItem(PROFILE_EMAIL_KEY) || '';
+    if (semesterInput) semesterInput.value = localStorage.getItem(PROFILE_SEMESTER_KEY) || DEFAULT_PROFILE_SEMESTER;
+
+    saveBtn.addEventListener('click', () => {
+        const name = nameInput.value.trim();
+        const faculty = facultyInput.value.trim();
+        const email = emailInput ? emailInput.value.trim() : '';
+        const semester = semesterInput ? semesterInput.value.trim() : '';
+        const newPassword = newPasswordInput ? newPasswordInput.value : '';
+        const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
+
+        if (!name) {
+            showToast('Enter your name before saving.');
+            return;
+        }
+        if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+            showToast('Enter a valid email address.');
+            return;
+        }
+
+        const wantsPasswordChange = newPassword.length > 0 || confirmPassword.length > 0;
+        if (wantsPasswordChange) {
+            if (newPassword.length < 8) {
+                showToast('New password must be at least 8 characters.');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showToast('Passwords do not match.');
+                return;
+            }
+        }
+
+        localStorage.setItem(PROFILE_NAME_KEY, name);
+        localStorage.setItem(PROFILE_FACULTY_KEY, faculty || DEFAULT_PROFILE_FACULTY);
+        if (emailInput) localStorage.setItem(PROFILE_EMAIL_KEY, email);
+        if (semesterInput) localStorage.setItem(PROFILE_SEMESTER_KEY, semester || DEFAULT_PROFILE_SEMESTER);
+
+        applyProfileSettings();
+
+        const previewName = document.getElementById('settingsProfileName');
+        const previewFaculty = document.getElementById('settingsProfileFaculty');
+        if (previewName) previewName.textContent = name;
+        if (previewFaculty) previewFaculty.textContent = faculty || DEFAULT_PROFILE_FACULTY;
+
+        if (wantsPasswordChange) {
+            if (newPasswordInput) newPasswordInput.value = '';
+            if (confirmPasswordInput) confirmPasswordInput.value = '';
+            showToast('Account updated! password changed.', 'success');
+        } else {
+            showToast('Account updated.', 'success');
+        }
+    });
+
+    initAvatarUpload();
+}
+
+/* Profile photo */
+function initAvatarUpload() {
+    const editBtn = document.getElementById('avatarEditBtn');
+    const fileInput = document.getElementById('avatarFileInput');
+    if (!editBtn || !fileInput) return;
+
+    editBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+
+        resizeImageToDataUrl(file, 200, (dataUrl) => {
+            if (!dataUrl) {
+                showToast('Could not read that image! try a different file.');
+                return;
+            }
+            try {
+                localStorage.setItem(PROFILE_AVATAR_KEY, dataUrl);
+            } catch (err) {
+                showToast('That image is too large to save.');
+                return;
+            }
+            applyProfileSettings();
+            showToast('Profile photo updated.', 'success');
+        });
+
+        fileInput.value = '';
+    });
+}
+
+function resizeImageToDataUrl(file, maxDim, callback) {
+    const reader = new FileReader();
+    reader.onerror = () => callback(null);
+    reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => callback(null);
+        img.onload = () => {
+            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            callback(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+/* ==========================================================================
+   Settings : notifications on/off
+   ========================================================================== */
+
+const NOTIFICATIONS_ENABLED_KEY = 'levelup-notifications-enabled';
+
+function notificationsEnabled() {
+    return localStorage.getItem(NOTIFICATIONS_ENABLED_KEY) !== 'false'; // enabled by default
+}
+
+function applyNotificationVisibility() {
+    const notifWrap = document.getElementById('notifWrap');
+    if (notifWrap) notifWrap.style.display = notificationsEnabled() ? '' : 'none';
+}
+
+function initNotificationsToggle() {
+    const toggle = document.getElementById('notificationsToggle');
+    if (!toggle) return;
+
+    toggle.checked = notificationsEnabled();
+
+    toggle.addEventListener('change', () => {
+        localStorage.setItem(NOTIFICATIONS_ENABLED_KEY, toggle.checked ? 'true' : 'false');
+        applyNotificationVisibility();
+        showToast(toggle.checked ? 'Notifications turned on.' : 'Notifications turned off.', 'success');
+    });
+}
+
