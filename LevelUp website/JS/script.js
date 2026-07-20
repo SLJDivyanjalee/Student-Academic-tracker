@@ -1060,3 +1060,182 @@ function initProgressAnimations() {
 
     bars.forEach(bar => observer.observe(bar));
 }
+
+/* ==========================================================================
+   Progress Page : Charts (attendance, weekly productivity, study hours)
+   ========================================================================== */
+
+let progressCharts = {};
+
+function initProgressCharts() {
+    if (typeof Chart === 'undefined') return; // CDN blocked/offline, page still works without charts
+
+    Chart.defaults.font.family = "'Poppins', sans-serif";
+
+    renderAttendanceChart();
+    renderProductivityChart();
+    renderStudyHoursChart();
+
+    // Charts are drawn once with baked-in colors, so redraw on theme flips
+    // rather than trying to live-patch every color inside each chart.
+    const observer = new MutationObserver(() => {
+        Object.values(progressCharts).forEach(c => c && c.destroy());
+        renderAttendanceChart();
+        renderProductivityChart();
+        renderStudyHoursChart();
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
+/* Pulls live theme colors so charts match light/dark mode instead of
+   hard-coding a palette that only looks right in one of them. */
+function chartThemeColors() {
+    const styles = getComputedStyle(document.body);
+    return {
+        text: styles.getPropertyValue('--text-muted').trim() || '#6b7280',
+        grid: styles.getPropertyValue('--border-soft').trim() || '#f3f4f6',
+    };
+}
+
+/*  Attendance - present/absent rate per subject, from the same demo lecture records seeded on the Attendance page. */
+function renderAttendanceChart() {
+    const ctx = document.getElementById('attendanceChart');
+    if (!ctx) return;
+    const { text, grid } = chartThemeColors();
+
+    const subjects = Object.keys(ATTENDANCE_SUBJECT_COLORS);
+    // Mirrors the seed rows in attendance.html's log table.
+    const attendanceRate = {
+        'Object Oriented Programming': 80,
+        'Data Structures & Algorithms': 100,
+        'Database Systems': 75,
+        'Inferential Statistics': 50,
+        'Linear Algebra': 50
+    };
+
+    progressCharts.attendance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: subjects.map(s => s.length > 18 ? s.replace(' & ', ' &\n') : s),
+            datasets: [{
+                data: subjects.map(s => attendanceRate[s] ?? 0),
+                backgroundColor: subjects.map(s => ATTENDANCE_SUBJECT_COLORS[s]),
+                borderRadius: 8,
+                maxBarThickness: 26
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (item) => `${item.raw}% attended` } }
+            },
+            scales: {
+                x: { min: 0, max: 100, ticks: { color: text, callback: v => v + '%' }, grid: { color: grid } },
+                y: { ticks: { color: text, font: { size: 11 } }, grid: { display: false } }
+            }
+        }
+    });
+}
+
+/*  Weekly Productivity - mirrors the streak card's Mon–Sun status
+   (done / today / upcoming) as a completed-tasks-per-day view.  */
+function renderProductivityChart() {
+    const ctx = document.getElementById('productivityChart');
+    if (!ctx) return;
+    const { text, grid } = chartThemeColors();
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    // Same shape as the streak-week cells above: Mon–Thu complete, Fri is
+    // today (in progress), Sat/Sun haven't happened yet.
+    const tasksDone = [5, 6, 4, 7, 3, 0, 0];
+    const todayIndex = 4;
+
+    progressCharts.productivity = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: days,
+            datasets: [{
+                data: tasksDone,
+                backgroundColor: days.map((_, i) => i === todayIndex ? '#f59e0b' : (i > todayIndex ? grid : '#6d5dfc')),
+                borderRadius: 8,
+                maxBarThickness: 34
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (item) => `${item.raw} tasks completed` } }
+            },
+            scales: {
+                x: { ticks: { color: text }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { color: text, stepSize: 2 }, grid: { color: grid } }
+            }
+        }
+    });
+}
+
+/* ---- Study Hours - reads this week's real study sessions out of the
+   Study Planner's saved state, so it reflects whatever the student has
+   actually generated/edited there. Falls back to sample data if the
+   planner hasn't been used yet. ---- */
+function renderStudyHoursChart() {
+    const ctx = document.getElementById('studyHoursChart');
+    if (!ctx) return;
+    const { text, grid } = chartThemeColors();
+    const subEl = document.getElementById('studyHoursSub');
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    let hoursByDay = null;
+
+    try {
+        const raw = localStorage.getItem(PLANNER_STATE_KEY);
+        if (raw) {
+            const state = JSON.parse(raw);
+            if (state && Array.isArray(state.studySessions) && state.studySessions.length) {
+                hoursByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+                state.studySessions.forEach(s => {
+                    const mins = timeToMinutes(s.end) - timeToMinutes(s.start);
+                    if (hoursByDay[s.day] != null && mins > 0) hoursByDay[s.day] += mins / 60;
+                });
+            }
+        }
+    } catch { /* corrupted/unavailable planner state - fall back to sample data below */ }
+
+    const usingRealData = !!hoursByDay;
+    if (!hoursByDay) hoursByDay = { Mon: 1.5, Tue: 2, Wed: 1, Thu: 2.5, Fri: 1.5, Sat: 3, Sun: 2 };
+    if (subEl) subEl.textContent = usingRealData ? 'From your Study Planner' : 'Sample - build a Study Planner for real data';
+
+    progressCharts.studyHours = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: days,
+            datasets: [{
+                data: days.map(d => Math.round(hoursByDay[d] * 10) / 10),
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                pointBackgroundColor: '#2563eb',
+                pointRadius: 4,
+                tension: 0.35,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: (item) => `${item.raw}h studied` } }
+            },
+            scales: {
+                x: { ticks: { color: text }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { color: text, callback: v => v + 'h' }, grid: { color: grid } }
+            }
+        }
+    });
+}
+
