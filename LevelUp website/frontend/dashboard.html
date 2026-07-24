@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LevelUp Dashboard</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/onboarding.css">
+    <link rel="stylesheet" href="CSS/help.css">
+</head>
+
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Notifications Sidebar -->
+<div class="notif-overlay" id="notifOverlay"></div>
+<div class="notif-panel" id="notifPanel">
+    <div class="notif-panel-header">
+        <h6>Notifications</h6>
+        <div class="d-flex align-items-center gap-2">
+            <button id="markAllRead">Mark all read</button>
+            <button class="notif-close" id="notifClose" aria-label="Close notifications"><i class="bi bi-x-lg"></i></button>
+        </div>
+    </div>
+    <div class="notif-list" id="notifList">
+    </div>
+</div>
+
+<div class="wrapper">
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo">
+            <img src="assets/logo.png" alt="LevelUp logo" class="logo-img">
+            <button class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <ul id="sidebarNav">
+            <li class="active" data-href="dashboard.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
+            <li data-href="calendar.html"><i class="bi bi-calendar3"></i> Calendar</li>
+            <li data-href="tasks.html"><i class="bi bi-list-check"></i> Tasks</li>
+            <li data-href="assignments-exams.html?type=assignment"><i class="bi bi-journal-text"></i> Assignments</li>
+            <li data-href="assignments-exams.html?type=exam"><i class="bi bi-pencil-square"></i> Exams</li>
+            <li data-href="dashboard.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
+            <li data-href="attendance.html"><i class="bi bi-clipboard2-check"></i> Attendance</li>
+            <li data-href="studyplanner.html"><i class="bi bi-calendar2-week"></i> Study Planner</li>
+            <li data-href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</li>
+            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li><li id="logoutNavItem"><i class="bi bi-box-arrow-right"></i> Logout</li></ul>
+    </div>
+
+    <div class="main-content" id="top">
+
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="menu-toggle" id="menuToggle" aria-label="Open menu"><i class="bi bi-list"></i></button>
+                    <div>
+                        <h2><span id="greetingTitle">Good Morning, Sunil</span> <i class="fa-solid fa-hand greeting-wave" aria-hidden="true"></i></h2>
+                        <p id="greetingSub">Stay focused and keep tracking your academic journey.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-4 navbar-actions">
+                    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
+                    <div class="notification" id="notifWrap">
+                        <i class="bi bi-bell fs-4" id="notifBell" role="button"></i>
+                        <span id="notifCount">0</span>
+                    </div>
+                    <div class="profile">
+                        <img alt="" id="topbarProfileAvatar" style="display:none">
+                        <i class="fa-solid fa-circle-user avatar-fallback-icon" id="topbarProfileAvatarIcon"></i>
+                        <div>
+                            <h6 id="topbarProfileName">Sunil</h6>
+                            <small id="topbarProfileFaculty">Computer Science</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="row mt-4" id="gettingStartedRow" style="display:none">
+            <div class="col-12">
+                <div class="dashboard-card getting-started-card" id="gettingStartedCard"></div>
+            </div>
+        </div>
+
+        <!--  Row 1: Stat Cards -->
+        <div class="row g-4 mt-1">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="icon purple"><i class="bi bi-pencil-square"></i></div>
+                    <h6>Upcoming Exams</h6>
+                    <h2 class="stat-num" id="statExams" data-count="0">0</h2>
+                    <p>In next 7 days</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="icon green"><i class="bi bi-journal-text"></i></div>
+                    <h6>Assignments</h6>
+                    <h2 class="stat-num" id="statAssignments" data-count="3">0</h2>
+                    <p>Pending</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="icon blue"><i class="bi bi-book"></i></div>
+                    <h6>Study Sessions</h6>
+                    <h2 class="stat-num" id="statSessions" data-count="5">0</h2>
+                    <p>This Week</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-card">
+                    <div class="icon orange"><i class="bi bi-check-circle"></i></div>
+                    <h6>Completed Tasks</h6>
+                    <h2 class="stat-num" id="statCompleted" data-count="12">0</h2>
+                    <p>This Week</p>
+                </div>
+            </div>
+        </div>
+
+        <!--  Row 2: Schedule & Events -->
+        <div class="row mt-4 g-4">
+
+            <!-- Today's Schedule -->
+            <div class="col-lg-8">
+                <div class="dashboard-card" id="todayScheduleCard">
+                    <div class="card-header-custom">
+                        <h4>Today's Schedule</h4>
+                        <button class="btn btn-sm btn-primary">View All</button>
+                    </div>
+                    <div class="timeline" id="todayScheduleList">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Events -->
+            <div class="col-lg-4">
+                <div class="dashboard-card" id="eventsCard">
+                    <div class="card-header-custom">
+                        <h4>Upcoming Events</h4>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!--  Row 3: Calendar & Focus Timer  -->
+        <div class="row mt-4 g-4">
+
+            <!-- Calendar -->
+            <div class="col-lg-8">
+                <div class="dashboard-card" id="calendarCard">
+                    <div class="card-header-custom">
+                        <h4 id="calendarMonthLabel">July 2026</h4>
+                        <div>
+                            <i class="bi bi-chevron-left me-3" id="calPrev" role="button"></i>
+                            <i class="bi bi-chevron-right" id="calNext" role="button"></i>
+                        </div>
+                    </div>
+                    <table class="calendar">
+                        <thead>
+                            <tr><th>Su</th><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th></tr>
+                        </thead>
+                        <tbody id="calendarBody">
+                            <tr><td></td><td></td><td>1</td><td>2</td><td>3</td><td class="today">4</td><td>5</td></tr>
+                            <tr><td>6</td><td>7</td><td>8</td><td class="event-day">9</td><td>10</td><td>11</td><td>12</td></tr>
+                            <tr><td>13</td><td>14</td><td>15</td><td>16</td><td class="event-day">17</td><td>18</td><td>19</td></tr>
+                            <tr><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td><td>26</td></tr>
+                            <tr><td>27</td><td>28</td><td>29</td><td>30</td><td>31</td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                    <p class="calendar-hint" id="calendarHint">Click any day to see its events.</p>
+                </div>
+            </div>
+
+            <!-- Focus Timer -->
+            <div class="col-lg-4">
+                <div class="dashboard-card text-center" id="timerCard">
+                    <button class="timer-maximize-btn" id="timerMaximizeBtn" type="button"
+                            aria-label="Maximize timer" title="Maximize">
+                        <i class="bi bi-arrows-angle-expand"></i>
+                    </button>
+
+                    <h4 class="mb-4" id="timerCardTitle">Focus Timer</h4>
+                    <div class="timer-circle" id="timerCircle">
+                        <h1 id="timerDisplay">00:25:00</h1>
+                        <small id="timerModeLabel">Ready</small>
+                    </div>
+
+                    <div class="alarm-set-row" id="alarmSetRow">
+                        <div class="alarm-field">
+                            <label for="alarmHours">HH</label>
+                            <input type="number" id="alarmHours" min="0" max="23" value="0">
+                        </div>
+                        <span class="alarm-colon">:</span>
+                        <div class="alarm-field">
+                            <label for="alarmMinutes">MM</label>
+                            <input type="number" id="alarmMinutes" min="0" max="59" value="25">
+                        </div>
+                        <span class="alarm-colon">:</span>
+                        <div class="alarm-field">
+                            <label for="alarmSeconds">SS</label>
+                            <input type="number" id="alarmSeconds" min="0" max="59" value="0">
+                        </div>
+                    </div>
+
+                    <div class="alarm-sound-row">
+                        <label for="alarmSound"><i class="bi bi-volume-up-fill"></i> End sound</label>
+                        <div class="alarm-sound-controls">
+                            <select id="alarmSound" class="form-select form-select-sm">
+                                <option value="beep">Classic Beep</option>
+                                <option value="digital">Digital Alarm</option>
+                                <option value="chime">Gentle Chime</option>
+                                <option value="siren">Alarm Clock</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-secondary" id="previewSoundBtn" type="button">Preview</button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline-primary mt-2 w-100" id="setAlarmBtn">
+                        Set Timer
+                    </button>
+                    <div class="timer-btn-row">
+                        <button class="timer-icon-btn timer-icon-btn-primary" id="timerBtn"
+                                aria-label="Start session" title="Start">
+                            <i class="bi bi-play-fill" id="timerBtnIcon"></i>
+                        </button>
+                        <button class="timer-icon-btn timer-icon-btn-secondary" id="resetTimerBtn"
+                                aria-label="Reset timer" title="Reset">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!--  Row 4  : Subject Progress + Streak -->
+        <div class="row mt-4 g-4">
+
+            <!-- Subject Progress -->
+            <div class="col-lg-7">
+                <div class="dashboard-card" id="progressCard">
+                    <div class="card-header-custom">
+                        <h4><i class="fa-solid fa-chart-column"></i> Subject Progress</h4>
+                        <small class="text-muted">Semester 3 — Week 8 of 14</small>
+                    </div>
+                    <div class="subject-list" id="progressList">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Productivity Streak -->
+            <div class="col-lg-5">
+                <div class="dashboard-card streak-card" id="streakCard">
+                    <div class="card-header-custom">
+                        <h4><i class="fa-solid fa-fire"></i> Productivity Streak</h4>
+                        <span class="streak-count" id="streakCountLabel">0 days</span>
+                    </div>
+
+                    <!-- Flame display -->
+                    <div class="streak-flame-wrap">
+                        <div class="streak-flame"><i class="fa-solid fa-fire"></i></div>
+                        <div class="streak-number" id="streakNumber">0</div>
+                        <div class="streak-label">Day Streak</div>
+                    </div>
+
+                    <!-- Week grid -->
+                    <div class="streak-week" id="streakWeek">
+                    </div>
+
+                    <!-- Streak milestones -->
+                    <div class="streak-milestones" id="streakMilestones">
+                    </div>
+                    <p class="streak-tip" id="streakTip"></p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Row 5 : Recent Tasks-->
+        <div class="row mt-4 g-4 mb-4">
+
+            <!-- Recent Tasks Table -->
+            <div class="col-12">
+                <div class="dashboard-card" id="tasksCard">
+                    <div class="card-header-custom">
+                        <h4><i class="fa-solid fa-list-check"></i> Recent Tasks</h4>
+                        <a class="btn btn-sm btn-primary" href="tasks.html">View All</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="tasks-table" id="tasksTable">
+                            <thead>
+                                <tr>
+                                    <th>Task</th>
+                                    <th>Subject</th>
+                                    <th>Due</th>
+                                    <th>Urgency</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasksTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <footer class="app-footer">
+            <div class="footer-brand"><img src="assets/logo-light.png" alt="LevelUp logo" class="footer-brand-logo footer-logo-light"><img src="assets/logo.png" alt="LevelUp logo" class="footer-brand-logo footer-logo-dark"></div>
+            <p class="mb-0">&copy; 2026 LevelUp. All rights reserved.</p>
+            <ul class="footer-links">
+                <li><a href="settings.html">Settings</a></li>
+                <li><a href="#top">Back to top</a></li>
+            </ul>
+        </footer>
+
+    </div>
+
+</div>
+
+<!-- Toast container -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="JS/api.js"></script>
+<script>Auth.requireAuth(); Auth.gateOnboarding();</script>
+<script src="JS/script.js"></script>
+<script src="JS/help.js"></script>
+
+</body>
+</html>
