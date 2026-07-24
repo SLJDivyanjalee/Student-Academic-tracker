@@ -24,6 +24,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/help.css">
 </head>
 
 <body>
@@ -41,10 +42,6 @@
         </div>
     </div>
     <div class="notif-list" id="notifList">
-        <div class="notif-item unread" data-id="1"><i class="bi bi-journal-text text-primary"></i><div><p>Database ER Diagram is due today</p><small>2h ago</small></div></div>
-        <div class="notif-item unread" data-id="2"><i class="bi bi-pencil-square text-danger"></i><div><p>Statistics Quiz is on Friday</p><small>5h ago</small></div></div>
-        <div class="notif-item unread" data-id="3"><i class="bi bi-fire text-warning"></i><div><p>You're on a 12-day streak, keep it going!</p><small>1d ago</small></div></div>
-        <div class="notif-item unread" data-id="4"><i class="bi bi-people text-success"></i><div><p>Rotaract meeting moved to Saturday 2 PM</p><small>1d ago</small></div></div>
     </div>
 </div>
 
@@ -57,16 +54,16 @@
             <button class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
         </div>
         <ul id="sidebarNav">
-            <li data-href="index.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
+            <li data-href="dashboard.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
             <li class="active" data-href="calendar.html"><i class="bi bi-calendar3"></i> Calendar</li>
             <li data-href="tasks.html"><i class="bi bi-list-check"></i> Tasks</li>
             <li data-href="assignments-exams.html?type=assignment"><i class="bi bi-journal-text"></i> Assignments</li>
             <li data-href="assignments-exams.html?type=exam"><i class="bi bi-pencil-square"></i> Exams</li>
-            <li data-href="index.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
+            <li data-href="dashboard.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
             <li data-href="attendance.html"><i class="bi bi-clipboard2-check"></i> Attendance</li>
             <li data-href="studyplanner.html"><i class="bi bi-calendar2-week"></i> Study Planner</li>
             <li data-href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</li>
-            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li>        </ul>
+            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li><li id="logoutNavItem"><i class="bi bi-box-arrow-right"></i> Logout</li></ul>
     </div>
 
     <!--  Main Content  -->
@@ -86,13 +83,14 @@
                     <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
                     <div class="notification" id="notifWrap">
                         <i class="bi bi-bell fs-4" id="notifBell" role="button"></i>
-                        <span id="notifCount">4</span>
+                        <span id="notifCount">0</span>
                     </div>
                     <div class="profile">
-                        <img src="https://i.pravatar.cc/45" alt="">
+                        <img alt="" id="topbarProfileAvatar" style="display:none">
+                        <i class="fa-solid fa-circle-user avatar-fallback-icon" id="topbarProfileAvatarIcon"></i>
                         <div>
-                            <h6>Sunil</h6>
-                            <small>Computer Science</small>
+                            <h6 id="topbarProfileName">Sunil</h6>
+                            <small id="topbarProfileFaculty">Computer Science</small>
                         </div>
                     </div>
                 </div>
@@ -121,7 +119,7 @@
                             <tr><td>27</td><td>28</td><td>29</td><td>30</td><td>31</td><td></td><td></td></tr>
                         </tbody>
                     </table>
-                    <p class="calendar-hint" id="calendarHint">9th &amp; 17th have events. Click any day to select it.</p>
+                    <p class="calendar-hint" id="calendarHint">Click any day to see its events.</p>
                 </div>
             </div>
 
@@ -129,22 +127,6 @@
                 <div class="dashboard-card" id="eventsCard">
                     <div class="card-header-custom">
                         <h4>Upcoming Events</h4>
-                    </div>
-                    <div class="event-item cal-event-item">
-                        <div class="event-icon bg-purple"><i class="bi bi-journal-text"></i></div>
-                        <div><h6>Assignment Deadline</h6><small>Tomorrow • Database Project</small></div>
-                    </div>
-                    <div class="event-item cal-event-item">
-                        <div class="event-icon bg-danger"><i class="bi bi-pencil-square"></i></div>
-                        <div><h6>Statistics Quiz</h6><small>Friday • 10:00 AM</small></div>
-                    </div>
-                    <div class="event-item cal-event-item">
-                        <div class="event-icon bg-success"><i class="bi bi-people"></i></div>
-                        <div><h6>Rotaract Meeting</h6><small>Saturday • 2:00 PM</small></div>
-                    </div>
-                    <div class="event-item cal-event-item">
-                        <div class="event-icon bg-warning"><i class="bi bi-book"></i></div>
-                        <div><h6>Study Goal</h6><small>Complete 10 Hours This Week</small></div>
                     </div>
                 </div>
             </div>
@@ -168,7 +150,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<script src="JS/api.js"></script>
+<script>Auth.requireAuth();</script>
 <script src="JS/script.js"></script>
+<script src="JS/help.js"></script>
 
 </body>
 </html>
