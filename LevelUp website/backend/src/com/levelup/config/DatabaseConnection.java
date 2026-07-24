@@ -8,7 +8,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-
 public final class DatabaseConnection {
 
     private static final Properties PROPERTIES = new Properties();
@@ -20,7 +19,6 @@ public final class DatabaseConnection {
 
     private static synchronized void loadProperties() {
         if (loaded) return;
-        
         try (InputStream fileStream = tryOpenFile("db.properties")) {
             if (fileStream != null) {
                 PROPERTIES.load(fileStream);
@@ -32,7 +30,7 @@ public final class DatabaseConnection {
             System.err.println("[DatabaseConnection] Failed reading db.properties from disk: " + e.getMessage());
         }
 
-        
+        // 2) fall back to a copy bundled on the classpath (src root)
         try (InputStream classpathStream = DatabaseConnection.class.getClassLoader().getResourceAsStream("db.properties")) {
             if (classpathStream != null) {
                 PROPERTIES.load(classpathStream);
@@ -57,7 +55,6 @@ public final class DatabaseConnection {
         }
     }
 
-   
     public static Connection getConnection() throws SQLException {
         loadProperties();
         String url = PROPERTIES.getProperty("db.url");
@@ -69,7 +66,6 @@ public final class DatabaseConnection {
         return DriverManager.getConnection(url, user, password);
     }
 
-    
     public static String getProperty(String key) {
         loadProperties();
         return PROPERTIES.getProperty(key);
