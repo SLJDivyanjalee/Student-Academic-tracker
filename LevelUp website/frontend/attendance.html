@@ -24,6 +24,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/help.css">
 </head>
 
 <body>
@@ -41,10 +42,6 @@
         </div>
     </div>
     <div class="notif-list" id="notifList">
-        <div class="notif-item unread" data-id="1"><i class="bi bi-journal-text text-primary"></i><div><p>Database ER Diagram is due today</p><small>2h ago</small></div></div>
-        <div class="notif-item unread" data-id="2"><i class="bi bi-pencil-square text-danger"></i><div><p>Statistics Quiz is on Friday</p><small>5h ago</small></div></div>
-        <div class="notif-item unread" data-id="3"><i class="bi bi-fire text-warning"></i><div><p>You're on a 12-day streak, keep it going!</p><small>1d ago</small></div></div>
-        <div class="notif-item unread" data-id="4"><i class="bi bi-people text-success"></i><div><p>Rotaract meeting moved to Saturday 2 PM</p><small>1d ago</small></div></div>
     </div>
 </div>
 
@@ -57,19 +54,18 @@
             <button class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
         </div>
         <ul id="sidebarNav">
-            <li data-href="index.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
+            <li data-href="dashboard.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
             <li data-href="calendar.html"><i class="bi bi-calendar3"></i> Calendar</li>
             <li data-href="tasks.html"><i class="bi bi-list-check"></i> Tasks</li>
             <li data-href="assignments-exams.html?type=assignment"><i class="bi bi-journal-text"></i> Assignments</li>
             <li data-href="assignments-exams.html?type=exam"><i class="bi bi-pencil-square"></i> Exams</li>
-            <li data-href="index.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
+            <li data-href="dashboard.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
             <li class="active" data-href="attendance.html"><i class="bi bi-clipboard2-check"></i> Attendance</li>
             <li data-href="studyplanner.html"><i class="bi bi-calendar2-week"></i> Study Planner</li>
             <li data-href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</li>
-            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li>        </ul>
+            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li><li id="logoutNavItem"><i class="bi bi-box-arrow-right"></i> Logout</li></ul>
     </div>
 
-    <!--  Main Content  -->
     <div class="main-content" id="top">
 
         <!-- Navbar -->
@@ -93,13 +89,14 @@
                     <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
                     <div class="notification" id="notifWrap">
                         <i class="bi bi-bell fs-4" id="notifBell" role="button"></i>
-                        <span id="notifCount">4</span>
+                        <span id="notifCount">0</span>
                     </div>
                     <div class="profile">
-                        <img src="https://i.pravatar.cc/45" alt="">
+                        <img alt="" id="topbarProfileAvatar" style="display:none">
+                        <i class="fa-solid fa-circle-user avatar-fallback-icon" id="topbarProfileAvatarIcon"></i>
                         <div>
-                            <h6>Sunil</h6>
-                            <small>Computer Science</small>
+                            <h6 id="topbarProfileName">Sunil</h6>
+                            <small id="topbarProfileFaculty">Computer Science</small>
                         </div>
                     </div>
                 </div>
@@ -115,34 +112,6 @@
                         <small class="text-muted">Tap to mark attendance</small>
                     </div>
                     <div class="quick-mark-list" id="quickMarkList">
-                        <div class="quick-mark-item" data-subject="Object Oriented Programming" data-lecture="OOP Lecture">
-                            <div class="quick-mark-info">
-                                <i class="bi bi-book text-primary"></i>
-                                <div>
-                                    <h6>Object Oriented Programming</h6>
-                                    <small>Lecture Hall A • 8:00 AM – 10:00 AM</small>
-                                </div>
-                            </div>
-                            <div class="quick-mark-actions">
-                                <button class="quick-mark-btn present" data-action="present"><i class="bi bi-check-lg"></i> Present</button>
-                                <button class="quick-mark-btn absent" data-action="absent"><i class="bi bi-x-lg"></i> Absent</button>
-                                <button class="quick-mark-btn cancelled" data-action="cancelled"><i class="bi bi-dash-circle"></i> Cancelled</button>
-                            </div>
-                        </div>
-                        <div class="quick-mark-item" data-subject="Database Systems" data-lecture="Database Systems Lab">
-                            <div class="quick-mark-info">
-                                <i class="bi bi-hdd-stack text-primary"></i>
-                                <div>
-                                    <h6>Database Systems Lab</h6>
-                                    <small>Computer Lab 2 • 11:00 AM – 1:00 PM</small>
-                                </div>
-                            </div>
-                            <div class="quick-mark-actions">
-                                <button class="quick-mark-btn present" data-action="present"><i class="bi bi-check-lg"></i> Present</button>
-                                <button class="quick-mark-btn absent" data-action="absent"><i class="bi bi-x-lg"></i> Absent</button>
-                                <button class="quick-mark-btn cancelled" data-action="cancelled"><i class="bi bi-dash-circle"></i> Cancelled</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -194,26 +163,12 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label small text-muted" for="ttMainSubjectInput">Main subject</label>
-                            <input type="text" class="form-control" id="ttMainSubjectInput" list="ttMainSubjectList" placeholder="e.g. Object Oriented Programming">
-                            <datalist id="ttMainSubjectList">
-                                <option value="Object Oriented Programming">
-                                <option value="Data Structures &amp; Algorithms">
-                                <option value="Inferential Statistics">
-                                <option value="Linear Algebra">
-                                <option value="Real Analysis">
-                                <option value="Database Systems">
-                            </datalist>
+                            <input type="text" class="form-control" id="ttMainSubjectInput" placeholder="e.g. Object Oriented Programming">
                             <small class="text-muted">Cells sharing a main subject share the same color.</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label small text-muted" for="ttModuleInput">Module</label>
-                            <input type="text" class="form-control" id="ttModuleInput" list="ttModuleList" placeholder="e.g. Lecture, Tutorial, Practical">
-                            <datalist id="ttModuleList">
-                                <option value="Lecture">
-                                <option value="Tutorial">
-                                <option value="Practical">
-                                <option value="Lab">
-                            </datalist>
+                            <input type="text" class="form-control" id="ttModuleInput" placeholder="e.g. Lecture, Tutorial, Practical">
                         </div>
                         <button class="btn btn-primary w-100" id="addTimetableBtn"><i class="bi bi-plus-lg"></i> Add to Timetable</button>
                     </div>
@@ -230,7 +185,6 @@
                         <small class="text-muted">75% is the usual eligibility cut-off</small>
                     </div>
                     <div class="subject-list" id="attendanceSubjectList">
-                        <!-- populated by JS -->
                     </div>
                 </div>
             </div>
@@ -255,150 +209,6 @@
                                 </tr>
                             </thead>
                             <tbody id="attendanceLogBody">
-                                <tr data-subject="Data Structures &amp; Algorithms">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">DSA Lecture — Trees &amp; Graphs</span></td>
-                                    <td class="task-subject">Data Structures &amp; Algorithms</td>
-                                    <td>Jul 6</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Data Structures &amp; Algorithms">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">DSA Lecture — Sorting Algorithms</span></td>
-                                    <td class="task-subject">Data Structures &amp; Algorithms</td>
-                                    <td>Jul 3</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Data Structures &amp; Algorithms">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">DSA Lab Session</span></td>
-                                    <td class="task-subject">Data Structures &amp; Algorithms</td>
-                                    <td>Jul 1</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Data Structures &amp; Algorithms">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">DSA Lecture — Recursion</span></td>
-                                    <td class="task-subject">Data Structures &amp; Algorithms</td>
-                                    <td>Jun 29</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-
-                                <tr data-subject="Object Oriented Programming">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">OOP Lecture — Inheritance</span></td>
-                                    <td class="task-subject">Object Oriented Programming</td>
-                                    <td>Jul 5</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Object Oriented Programming">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">OOP Lecture — Interfaces</span></td>
-                                    <td class="task-subject">Object Oriented Programming</td>
-                                    <td>Jul 2</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Object Oriented Programming">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">OOP Lecture — Polymorphism</span></td>
-                                    <td class="task-subject">Object Oriented Programming</td>
-                                    <td>Jun 30</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Object Oriented Programming">
-                                    <td class="task-title-cell"><i class="bi bi-book text-danger me-2"></i><span class="task-name">OOP Lecture — Abstraction</span></td>
-                                    <td class="task-subject">Object Oriented Programming</td>
-                                    <td>Jun 28</td>
-                                    <td><span class="status-pill status-missed" data-status="absent" role="button" tabindex="0">Absent</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-
-                                <tr data-subject="Database Systems">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Database Systems Lab</span></td>
-                                    <td class="task-subject">Database Systems</td>
-                                    <td>Jul 4</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Database Systems">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Database Systems Lecture — Normalization</span></td>
-                                    <td class="task-subject">Database Systems</td>
-                                    <td>Jul 1</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Database Systems">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Database Systems Lecture — ER Modeling</span></td>
-                                    <td class="task-subject">Database Systems</td>
-                                    <td>Jun 27</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Database Systems">
-                                    <td class="task-title-cell"><i class="bi bi-book text-danger me-2"></i><span class="task-name">Database Systems Lecture — Transactions</span></td>
-                                    <td class="task-subject">Database Systems</td>
-                                    <td>Jun 25</td>
-                                    <td><span class="status-pill status-missed" data-status="absent" role="button" tabindex="0">Absent</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-
-                                <tr data-subject="Inferential Statistics">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Statistics Lecture — Hypothesis Testing</span></td>
-                                    <td class="task-subject">Inferential Statistics</td>
-                                    <td>Jul 3</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Inferential Statistics">
-                                    <td class="task-title-cell"><i class="bi bi-book text-danger me-2"></i><span class="task-name">Statistics Lecture — Confidence Intervals</span></td>
-                                    <td class="task-subject">Inferential Statistics</td>
-                                    <td>Jun 30</td>
-                                    <td><span class="status-pill status-missed" data-status="absent" role="button" tabindex="0">Absent</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Inferential Statistics">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Statistics Lecture — Sampling</span></td>
-                                    <td class="task-subject">Inferential Statistics</td>
-                                    <td>Jun 26</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Inferential Statistics">
-                                    <td class="task-title-cell"><i class="bi bi-book text-danger me-2"></i><span class="task-name">Statistics Lecture — Regression</span></td>
-                                    <td class="task-subject">Inferential Statistics</td>
-                                    <td>Jun 24</td>
-                                    <td><span class="status-pill status-missed" data-status="absent" role="button" tabindex="0">Absent</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-
-                                <tr data-subject="Linear Algebra">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Linear Algebra Lecture — Eigenvalues</span></td>
-                                    <td class="task-subject">Linear Algebra</td>
-                                    <td>Jul 2</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Linear Algebra">
-                                    <td class="task-title-cell"><i class="bi bi-book text-danger me-2"></i><span class="task-name">Linear Algebra Lecture — Vector Spaces</span></td>
-                                    <td class="task-subject">Linear Algebra</td>
-                                    <td>Jun 29</td>
-                                    <td><span class="status-pill status-missed" data-status="absent" role="button" tabindex="0">Absent</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Linear Algebra">
-                                    <td class="task-title-cell"><i class="bi bi-book text-success me-2"></i><span class="task-name">Linear Algebra Lecture — Matrix Transforms</span></td>
-                                    <td class="task-subject">Linear Algebra</td>
-                                    <td>Jun 25</td>
-                                    <td><span class="status-pill status-done" data-status="present" role="button" tabindex="0">Present</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr data-subject="Linear Algebra">
-                                    <td class="task-title-cell"><i class="bi bi-book text-danger me-2"></i><span class="task-name">Linear Algebra Lecture — Determinants</span></td>
-                                    <td class="task-subject">Linear Algebra</td>
-                                    <td>Jun 23</td>
-                                    <td><span class="status-pill status-missed" data-status="absent" role="button" tabindex="0">Absent</span></td>
-                                    <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
-                                </tr>
                             </tbody>
                         </table>
                         <p class="search-no-results" id="attendanceSearchNoResults">No lectures match your search.</p>
@@ -420,12 +230,36 @@
 
 </div>
 
+<!-- Lecture Conflict Modal -->
+<div class="modal fade" id="lectureConflictModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill text-warning"></i> Lecture Time Clash</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">This time slot isn't available - it overlaps with an existing lecture:</p>
+                <p class="mb-3 fw-semibold" id="lectureConflictExisting"></p>
+                <p class="mb-0">Which one would you like to keep?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" id="keepExistingLectureBtn">Keep existing lecture</button>
+                <button type="button" class="btn btn-danger btn-sm" id="keepNewLectureBtn">Replace with new lecture</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast container -->
 <div class="toast-stack" id="toastStack" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<script src="JS/api.js"></script>
+<script>Auth.requireAuth();</script>
 <script src="JS/script.js"></script>
+<script src="JS/help.js"></script>
 
 </body>
 </html>
