@@ -27,6 +27,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
     <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/help.css">
 </head>
 
 <body>
@@ -44,10 +45,6 @@
         </div>
     </div>
     <div class="notif-list" id="notifList">
-        <div class="notif-item unread" data-id="1"><i class="bi bi-journal-text text-primary"></i><div><p>Database ER Diagram is due today</p><small>2h ago</small></div></div>
-        <div class="notif-item unread" data-id="2"><i class="bi bi-pencil-square text-danger"></i><div><p>Statistics Quiz is on Friday</p><small>5h ago</small></div></div>
-        <div class="notif-item unread" data-id="3"><i class="bi bi-fire text-warning"></i><div><p>You're on a 12-day streak, keep it going!</p><small>1d ago</small></div></div>
-        <div class="notif-item unread" data-id="4"><i class="bi bi-people text-success"></i><div><p>Rotaract meeting moved to Saturday 2 PM</p><small>1d ago</small></div></div>
     </div>
 </div>
 
@@ -60,19 +57,18 @@
             <button class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
         </div>
         <ul id="sidebarNav">
-            <li data-href="index.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
+            <li data-href="dashboard.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
             <li data-href="calendar.html"><i class="bi bi-calendar3"></i> Calendar</li>
             <li data-href="tasks.html"><i class="bi bi-list-check"></i> Tasks</li>
             <li data-href="assignments-exams.html?type=assignment"><i class="bi bi-journal-text"></i> Assignments</li>
             <li data-href="assignments-exams.html?type=exam"><i class="bi bi-pencil-square"></i> Exams</li>
-            <li data-href="index.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
+            <li data-href="dashboard.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
             <li data-href="attendance.html"><i class="bi bi-clipboard2-check"></i> Attendance</li>
             <li data-href="studyplanner.html"><i class="bi bi-calendar2-week"></i> Study Planner</li>
             <li class="active" data-href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</li>
-            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li>        </ul>
+            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li><li id="logoutNavItem"><i class="bi bi-box-arrow-right"></i> Logout</li></ul>
     </div>
 
-    <!--  Main Content -->
     <div class="main-content" id="top">
 
         <!-- Navbar -->
@@ -89,13 +85,14 @@
                     <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
                     <div class="notification" id="notifWrap">
                         <i class="bi bi-bell fs-4" id="notifBell" role="button"></i>
-                        <span id="notifCount">4</span>
+                        <span id="notifCount">0</span>
                     </div>
                     <div class="profile">
-                        <img src="https://i.pravatar.cc/45" alt="">
+                        <img alt="" id="topbarProfileAvatar" style="display:none">
+                        <i class="fa-solid fa-circle-user avatar-fallback-icon" id="topbarProfileAvatarIcon"></i>
                         <div>
-                            <h6>Sunil</h6>
-                            <small>Computer Science</small>
+                            <h6 id="topbarProfileName">Sunil</h6>
+                            <small id="topbarProfileFaculty">Computer Science</small>
                         </div>
                     </div>
                 </div>
@@ -109,109 +106,27 @@
                         <h4><i class="fa-solid fa-chart-column"></i> Subject Progress</h4>
                         <small class="text-muted">Semester 3 — Week 8 of 14</small>
                     </div>
-                    <div class="subject-list">
-                        <div class="subject-row">
-                            <div class="subject-info">
-                                <span class="subject-dot" style="background:#7c3aed"></span>
-                                <span class="subject-name">Object Oriented Programming</span>
-                                <span class="subject-pct">78%</span>
-                            </div>
-                            <div class="subject-bar-track">
-                                <div class="subject-bar-fill" style="width:78%; background:#7c3aed"></div>
-                            </div>
-                            <div class="subject-meta">
-                                <span class="badge-pill purple-pill">On Track</span>
-                                <span class="subject-tasks">14/18 tasks done</span>
-                            </div>
-                        </div>
-                        <div class="subject-row">
-                            <div class="subject-info">
-                                <span class="subject-dot" style="background:#2563eb"></span>
-                                <span class="subject-name">Database Systems</span>
-                                <span class="subject-pct">65%</span>
-                            </div>
-                            <div class="subject-bar-track">
-                                <div class="subject-bar-fill" style="width:65%; background:#2563eb"></div>
-                            </div>
-                            <div class="subject-meta">
-                                <span class="badge-pill blue-pill">On Track</span>
-                                <span class="subject-tasks">11/17 tasks done</span>
-                            </div>
-                        </div>
-                        <div class="subject-row">
-                            <div class="subject-info">
-                                <span class="subject-dot" style="background:#ef4444"></span>
-                                <span class="subject-name">Inferential Statistics</span>
-                                <span class="subject-pct">42%</span>
-                            </div>
-                            <div class="subject-bar-track">
-                                <div class="subject-bar-fill" style="width:42%; background:#ef4444"></div>
-                            </div>
-                            <div class="subject-meta">
-                                <span class="badge-pill red-pill">Needs Attention</span>
-                                <span class="subject-tasks">7/16 tasks done</span>
-                            </div>
-                        </div>
-                        <div class="subject-row">
-                            <div class="subject-info">
-                                <span class="subject-dot" style="background:#22c55e"></span>
-                                <span class="subject-name">Data Structures &amp; Algorithms</span>
-                                <span class="subject-pct">85%</span>
-                            </div>
-                            <div class="subject-bar-track">
-                                <div class="subject-bar-fill" style="width:85%; background:#22c55e"></div>
-                            </div>
-                            <div class="subject-meta">
-                                <span class="badge-pill green-pill">Excellent</span>
-                                <span class="subject-tasks">17/20 tasks done</span>
-                            </div>
-                        </div>
-                        <div class="subject-row">
-                            <div class="subject-info">
-                                <span class="subject-dot" style="background:#f59e0b"></span>
-                                <span class="subject-name">Linear Algebra</span>
-                                <span class="subject-pct">58%</span>
-                            </div>
-                            <div class="subject-bar-track">
-                                <div class="subject-bar-fill" style="width:58%; background:#f59e0b"></div>
-                            </div>
-                            <div class="subject-meta">
-                                <span class="badge-pill orange-pill">Catch Up</span>
-                                <span class="subject-tasks">9/15 tasks done</span>
-                            </div>
-                        </div>
+                    <div class="subject-list" id="progressList">
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-5">
-                <div class="dashboard-card streak-card">
+                <div class="dashboard-card streak-card" id="streakCard">
                     <div class="card-header-custom">
                         <h4><i class="fa-solid fa-fire"></i> Productivity Streak</h4>
-                        <span class="streak-count">12 days</span>
+                        <span class="streak-count" id="streakCountLabel">0 days</span>
                     </div>
                     <div class="streak-flame-wrap">
                         <div class="streak-flame"><i class="fa-solid fa-fire"></i></div>
-                        <div class="streak-number">12</div>
+                        <div class="streak-number" id="streakNumber">0</div>
                         <div class="streak-label">Day Streak</div>
                     </div>
-                    <div class="streak-week">
-                        <div class="day-cell done"><span>M</span><i class="bi bi-check-lg"></i></div>
-                        <div class="day-cell done"><span>T</span><i class="bi bi-check-lg"></i></div>
-                        <div class="day-cell done"><span>W</span><i class="bi bi-check-lg"></i></div>
-                        <div class="day-cell done"><span>T</span><i class="bi bi-check-lg"></i></div>
-                        <div class="day-cell today-cell"><span>F</span><i class="bi bi-clock"></i></div>
-                        <div class="day-cell"><span>S</span></div>
-                        <div class="day-cell"><span>S</span></div>
+                    <div class="streak-week" id="streakWeek">
                     </div>
-                    <div class="streak-milestones">
-                        <div class="milestone reached"><span><i class="fa-solid fa-medal medal-bronze"></i></span><small>7 days</small></div>
-                        <div class="milestone-line reached"></div>
-                        <div class="milestone active-ms"><span><i class="fa-solid fa-medal medal-silver"></i></span><small>14 days</small></div>
-                        <div class="milestone-line"></div>
-                        <div class="milestone"><span><i class="fa-solid fa-medal medal-gold"></i></span><small>30 days</small></div>
+                    <div class="streak-milestones" id="streakMilestones">
                     </div>
-                    <p class="streak-tip">2 more days to unlock the Silver Streak badge! <i class="fa-solid fa-medal medal-silver"></i></p>
+                    <p class="streak-tip" id="streakTip"></p>
                 </div>
             </div>
         </div>
@@ -272,7 +187,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<script src="JS/api.js"></script>
+<script>Auth.requireAuth();</script>
 <script src="JS/script.js"></script>
+<script src="JS/help.js"></script>
 
 </body>
 </html>
