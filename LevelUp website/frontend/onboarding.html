@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome to LevelUp</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    
+    <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/onboarding.css">
+</head>
+
+<body>
+
+<!-- Decorative backdrop shown behind the modal (and blurred once it opens) -->
+<div class="onboarding-backdrop">
+    <div class="onboarding-backdrop-inner">
+        <img src="assets/logo-light.png" alt="LevelUp" class="footer-brand-logo footer-logo-light onboarding-backdrop-logo">
+        <img src="assets/logo.png" alt="LevelUp" class="footer-brand-logo footer-logo-dark onboarding-backdrop-logo">
+        <p class="onboarding-backdrop-tag">Your whole semester, organized.</p>
+    </div>
+</div>
+
+<!-- Onboarding modal: only dismissible via the wizard's own buttons -->
+<div class="modal fade" id="onboardingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true" aria-labelledby="onboardingModalLabel">
+    <div class="modal-dialog modal-dialog-centered onboarding-modal-dialog">
+        <div class="modal-content onboarding-modal-content">
+
+            <div class="onboarding-dots" id="onboardingDots">
+                <span class="onboarding-dot active" data-dot="1"></span>
+                <span class="onboarding-dot" data-dot="2"></span>
+                <span class="onboarding-dot" data-dot="3"></span>
+            </div>
+
+            <div class="onboarding-steps" id="onboardingSteps">
+
+                <!-- STEP 1: Welcome -->
+                <section class="onboarding-step active" data-step="1">
+                    <div class="modal-body onboarding-step-body text-center">
+                        <div class="onboarding-emoji" aria-hidden="true">👋</div>
+                        <h3 id="onboardingModalLabel">Welcome to LevelUp</h3>
+                        <p class="onboarding-subtitle">Plan smarter. Stay organized. Achieve more.</p>
+                        <p class="onboarding-desc">Let's personalize your academic workspace before you begin.</p>
+                    </div>
+                    <div class="modal-footer onboarding-step-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="obSkipBtn">Skip Setup</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="obGetStartedBtn">Get Started</button>
+                    </div>
+                </section>
+
+                <!-- STEP 2: Academic Setup -->
+                <section class="onboarding-step" data-step="2">
+                    <div class="modal-header onboarding-step-header">
+                        <h5 class="modal-title"><i class="bi bi-mortarboard"></i> Academic Setup</h5>
+                    </div>
+                    <div class="modal-body onboarding-step-body">
+                        <div class="onboarding-error" id="onboardingError"></div>
+                        <form id="onboardingForm" novalidate>
+                            <div class="mb-3">
+                                <label class="form-label" for="obSemester">Current Semester</label>
+                                <select class="form-select" id="obSemester" required>
+                                    <option value="" selected disabled>Select your semester</option>
+                                    <option value="Semester 1">Semester 1</option>
+                                    <option value="Semester 2">Semester 2</option>
+                                    <option value="Semester 3">Semester 3</option>
+                                    <option value="Semester 4">Semester 4</option>
+                                    <option value="Semester 5">Semester 5</option>
+                                    <option value="Semester 6">Semester 6</option>
+                                    <option value="Semester 7">Semester 7</option>
+                                    <option value="Semester 8">Semester 8</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="obSubjectsCount">Number of Subjects</label>
+                                <input type="number" class="form-control" id="obSubjectsCount" min="1" max="30" value="5" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="obDailyGoal">
+                                    Preferred Daily Study Goal
+                                    <span class="onboarding-range-value" id="obDailyGoalValue">2 hrs/day</span>
+                                </label>
+                                <input type="range" class="form-range" id="obDailyGoal" min="1" max="10" value="2">
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label d-block">Enable Notifications</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="obNotifyAssignments" checked>
+                                    <label class="form-check-label" for="obNotifyAssignments">Assignment reminders</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="obNotifyExams" checked>
+                                    <label class="form-check-label" for="obNotifyExams">Exam reminders</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="obNotifyStudy" checked>
+                                    <label class="form-check-label" for="obNotifyStudy">Study session reminders</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer onboarding-step-footer">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="obBackBtn">Back</button>
+                        <button type="button" class="btn btn-primary btn-sm" id="obContinueBtn">Continue</button>
+                    </div>
+                </section>
+
+                <!-- STEP 3: Finish -->
+                <section class="onboarding-step" data-step="3">
+                    <div class="modal-body onboarding-step-body text-center">
+                        <div class="onboarding-emoji onboarding-checkmark" aria-hidden="true">🎉</div>
+                        <h3>You're all set!</h3>
+                        <p class="onboarding-desc">Your personalized dashboard is ready.</p>
+                    </div>
+                    <div class="modal-footer onboarding-step-footer justify-content-center">
+                        <button type="button" class="btn btn-primary" id="obFinishBtn">Go to Dashboard</button>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast container (same look as the rest of the app) -->
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="JS/api.js"></script>
+<script>Auth.requireAuth();</script>
+<script src="JS/onboarding.js"></script>
+
+</body>
+</html>
