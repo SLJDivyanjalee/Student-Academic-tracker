@@ -2,26 +2,47 @@
    LevelUp Dashboard - Frontend interactivity
    ========================================================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     initSidebar();
+    initLogout();
+    initEmptyStateButtons();
     applyTimeBasedGreeting();
     applyProfileSettings();
     applyNotificationVisibility();
+    if (document.getElementById('eventsCard') || document.getElementById('notifList')) {
+        await loadDueSoonWidgets();
+    }
     if (document.getElementById('notifPanel')) initNotifications();
     if (document.getElementById('calendarBody')) initCalendar();
     if (document.getElementById('timerCircle')) initTimer();
     if (document.getElementById('tasksTable')) initTasksTable();
+    if (document.querySelector('.stat-num')) await loadDashboardStats();
     if (document.querySelector('.stat-num')) initStatCounters();
+    if (document.getElementById('gettingStartedRow')) await initGettingStartedChecklist();
     initProgressAnimations();
+    if (document.getElementById('todayScheduleList')) initTodaySchedule();
+    if (document.getElementById('progressCard')) renderSubjectProgress();
+    if (document.getElementById('streakCard')) initStreak();
     if (document.getElementById('attendanceLogTable')) initAttendance();
     if (document.getElementById('timetableTable')) initTimetable();
-    if (document.getElementById('plannerTable')) initStudyPlanner();
+    if (document.getElementById('plannerTable')) await initStudyPlanner();
     if (document.getElementById('profileNameInput')) initSettingsPage();
     if (document.getElementById('notificationsToggle')) initNotificationsToggle();
     if (document.getElementById('attendanceChart')) initProgressCharts();
     initPageSearch();
 });
+
+/* ==========================================================================
+   Date helpers
+   ========================================================================== */
+
+function toLocalIsoDate(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
 
 /* ==========================================================================
    Toasts
@@ -74,6 +95,308 @@ function initTheme() {
 }
 
 /* ==========================================================================
+   Settings - account details (name / email / faculty / semester / avatar)
+   ========================================================================== */
+
+const DEFAULT_PROFILE_NAME = 'Tharindu
+
+function applyTimeBasedGreeting() {
+    const greetingTitle = document.getElementById('greetingTitle');
+    if (!greetingTitle) return;
+
+    const text = greetingTitle.textContent;
+    const match = text.match(/^Good (Morning|Afternoon|Evening)/);
+    if (!match) return;
+
+    const hour = new Date().getHours();
+    let timeGreeting = 'Good Evening';
+    if (hour < 12) timeGreeting = 'Good Morning';
+    else if (hour < 17) timeGreeting = 'Good Afternoon';
+
+    greetingTitle.textContent = text.replace(match[0], timeGreeting);
+}
+
+function setAvatarDisplay(imgEl, iconEl, avatarUrl) {
+    if (!imgEl) return;
+    if (avatarUrl) {
+        imgEl.src = avatarUrl;
+        imgEl.style.display = '';
+        if (iconEl) iconEl.style.display = 'none';
+    } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+        if (iconEl) iconEl.style.display = '';
+    }
+}
+
+function applyProfileSettings() {
+    const user = typeof Auth !== 'undefined' ? Auth.getUser() : null;
+    if (!user) return;
+
+    if (user.name) {
+        document.querySelectorAll('.profile h6, #topbarProfileName').forEach(el => el.textContent = user.name);
+
+        const greetingTitle = document.getElementById('greetingTitle');
+        if (greetingTitle && greetingTitle.textContent.includes(DEFAULT_PROFILE_NAME)) {
+            const firstName = user.name.trim().split(/\s+/)[0];
+            greetingTitle.textContent = greetingTitle.textContent.replace(DEFAULT_PROFILE_NAME, firstName);
+        }
+    }
+
+    document.querySelectorAll('.profile small, #topbarProfileFaculty').forEach(el => el.textContent = user.faculty || '');
+
+    document.querySelectorAll('.profile img').forEach(img => setAvatarDisplay(img, img.nextElementSibling, user.avatarUrl));
+    setAvatarDisplay(document.getElementById('settingsProfileAvatar'), document.getElementById('settingsProfileAvatarIcon'), user.avatarUrl);
+}
+
+/* Auth */
+function initLogout() {
+    const item = document.getElementById('logoutNavItem');
+    if (!item) return;
+    item.addEventListener('click', () => {
+        if (typeof Auth !== 'undefined') Auth.logout();
+    });
+}
+
+async function initSettingsPage() {
+    const nameInput = document.getElementById('profileNameInput');
+    const facultyInput = document.getElementById('profileFacultyInput');
+    const emailInput = document.getElementById('profileEmailInput');
+    const semesterInput = document.getElementById('profileSemesterInput');
+    const currentPasswordInput = document.getElementById('currentPasswordInput');
+    const newPasswordInput = document.getElementById('newPasswordInput');
+    const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+    const saveBtn = document.getElementById('saveProfileBtn');
+    if (!nameInput || !facultyInput || !saveBtn) return;
+
+    try {
+        const profile = await ProfileApi.get();
+        nameInput.value = profile.name || '';
+        facultyInput.value = profile.faculty || '';
+        if (emailInput) emailInput.value = profile.email || '';
+        if (semesterInput) semesterInput.value = profile.semester || '';
+        setAvatarDisplay(document.getElementById('settingsProfileAvatar'), document.getElementById('settingsProfileAvatarIcon'), profile.avatarUrl);
+        const previewName = document.getElementById('settingsProfileName');
+        const previewFaculty = document.getElementById('settingsProfileFaculty');
+        if (previewName) previewName.textContent = profile.name || '';
+        if (previewFaculty) previewFaculty.textContent = profile.faculty || '';
+    } catch (err) {
+        showToast(err.message || 'Could not load your profile.');
+    }
+
+    saveBtn.addEventListener('click', async () => {
+        const name = nameInput.value.trim();
+        const faculty = facultyInput.value.trim();
+        const email = emailInput ? emailInput.value.trim() : '';
+        const semester = semesterInput ? semesterInput.value.trim() : '';
+        const currentPassword = currentPasswordInput ? currentPasswordInput.value : '';
+        const newPassword = newPasswordInput ? newPasswordInput.value : '';
+        const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
+
+        if (!name) {
+            showToast('Enter your name before saving.');
+            return;
+        }
+        if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+            showToast('Enter a valid email address.');
+            return;
+        }
+
+        const wantsPasswordChange = newPassword.length > 0 || confirmPassword.length > 0;
+        if (wantsPasswordChange) {
+            if (!currentPassword) {
+                showToast('Enter your current password to change it.');
+                return;
+            }
+            if (newPassword.length < 8) {
+                showToast('New password must be at least 8 characters.');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showToast('Passwords do not match.');
+                return;
+            }
+        }
+
+        saveBtn.disabled = true;
+        try {
+            const saved = await ProfileApi.save({
+                name, faculty, email,
+                semester,
+                avatarUrl: (document.getElementById('settingsProfileAvatar') || {}).src,
+                notificationsEnabled: notificationsEnabled()
+            });
+            Auth.setSession(Auth.getToken(), saved);
+            applyProfileSettings();
+
+            const previewName = document.getElementById('settingsProfileName');
+            const previewFaculty = document.getElementById('settingsProfileFaculty');
+            if (previewName) previewName.textContent = saved.name;
+            if (previewFaculty) previewFaculty.textContent = saved.faculty || '';
+
+            if (wantsPasswordChange) {
+                await ProfileApi.changePassword(currentPassword, newPassword);
+                if (currentPasswordInput) currentPasswordInput.value = '';
+                if (newPasswordInput) newPasswordInput.value = '';
+                if (confirmPasswordInput) confirmPasswordInput.value = '';
+                showToast('Account updated! password changed.', 'success');
+            } else {
+                showToast('Account updated.', 'success');
+            }
+        } catch (err) {
+            showToast(err.message || 'Could not save your profile.');
+        } finally {
+            saveBtn.disabled = false;
+        }
+    });
+
+    initAvatarUpload();
+    initDangerZone();
+}
+
+/* Reset Data + Delete Account (Settings > Danger Zone) */
+function initDangerZone() {
+    const resetBtn = document.getElementById('resetDataBtn');
+    const confirmResetBtn = document.getElementById('confirmResetDataBtn');
+    const resetModalEl = document.getElementById('resetDataModal');
+
+    const deleteBtn = document.getElementById('deleteAccountBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteAccountBtn');
+    const deleteModalEl = document.getElementById('deleteAccountModal');
+    const deletePasswordInput = document.getElementById('deleteAccountPasswordInput');
+
+    if (resetBtn && resetModalEl && typeof bootstrap !== 'undefined') {
+        resetBtn.addEventListener('click', () => {
+            bootstrap.Modal.getOrCreateInstance(resetModalEl).show();
+        });
+    }
+
+    if (confirmResetBtn) {
+        confirmResetBtn.addEventListener('click', async () => {
+            confirmResetBtn.disabled = true;
+            try {
+                await ProfileApi.resetData();
+                if (resetModalEl && typeof bootstrap !== 'undefined') {
+                    bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
+                }
+                showToast('All academic data has been cleared. Your account is untouched.', 'success');
+            } catch (err) {
+                showToast(err.message || 'Could not reset your data.');
+            } finally {
+                confirmResetBtn.disabled = false;
+            }
+        });
+    }
+
+    if (deleteBtn && deleteModalEl && typeof bootstrap !== 'undefined') {
+        deleteBtn.addEventListener('click', () => {
+            if (deletePasswordInput) deletePasswordInput.value = '';
+            bootstrap.Modal.getOrCreateInstance(deleteModalEl).show();
+        });
+    }
+
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', async () => {
+            const password = deletePasswordInput ? deletePasswordInput.value : '';
+            if (!password) {
+                showToast('Enter your password to confirm account deletion.');
+                return;
+            }
+            confirmDeleteBtn.disabled = true;
+            try {
+                await ProfileApi.deleteAccount(password);
+                Auth.clearSession();
+                location.href = 'login.html';
+            } catch (err) {
+                showToast(err.message || 'Could not delete your account.');
+                confirmDeleteBtn.disabled = false;
+            }
+        });
+    }
+}
+
+/* Profile photo */
+function initAvatarUpload() {
+    const editBtn = document.getElementById('avatarEditBtn');
+    const fileInput = document.getElementById('avatarFileInput');
+    if (!editBtn || !fileInput) return;
+
+    editBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+
+        resizeImageToDataUrl(file, 200, async (dataUrl) => {
+            if (!dataUrl) {
+                showToast('Could not read that image! try a different file.');
+                return;
+            }
+            setAvatarDisplay(document.getElementById('settingsProfileAvatar'), document.getElementById('settingsProfileAvatarIcon'), dataUrl);
+            try {
+                const current = await ProfileApi.get();
+                const saved = await ProfileApi.save({ ...current, avatarUrl: dataUrl });
+                Auth.setSession(Auth.getToken(), saved);
+                applyProfileSettings();
+                showToast('Profile photo updated.', 'success');
+            } catch (err) {
+                showToast(err.message || 'That image could not be saved.');
+            }
+        });
+
+        fileInput.value = '';
+    });
+}
+
+function resizeImageToDataUrl(file, maxDim, callback) {
+    const reader = new FileReader();
+    reader.onerror = () => callback(null);
+    reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => callback(null);
+        img.onload = () => {
+            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            callback(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+/* ==========================================================================
+   Settings : notifications on/off
+   ========================================================================== */
+
+const NOTIFICATIONS_ENABLED_KEY = 'levelup-notifications-enabled';
+
+function notificationsEnabled() {
+    return localStorage.getItem(NOTIFICATIONS_ENABLED_KEY) !== 'false'; // enabled by default
+}
+
+function applyNotificationVisibility() {
+    const notifWrap = document.getElementById('notifWrap');
+    if (notifWrap) notifWrap.style.display = notificationsEnabled() ? '' : 'none';
+}
+
+function initNotificationsToggle() {
+    const toggle = document.getElementById('notificationsToggle');
+    if (!toggle) return;
+
+    toggle.checked = notificationsEnabled();
+
+    toggle.addEventListener('change', () => {
+        localStorage.setItem(NOTIFICATIONS_ENABLED_KEY, toggle.checked ? 'true' : 'false');
+        applyNotificationVisibility();
+        showToast(toggle.checked ? 'Notifications turned on.' : 'Notifications turned off.', 'success');
+    });
+}
+
+/* ==========================================================================
    Sidebar: mobile drawer + section navigation
    ========================================================================== */
 
@@ -100,7 +423,7 @@ function initSidebar() {
         if (e.key === 'Escape') closeDrawer();
     });
 
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
     const currentFull = currentPage + window.location.search;
     navItems.forEach(item => {
         const href = item.dataset.href || '';
@@ -186,10 +509,81 @@ function initNotifications() {
 }
 
 /* ==========================================================================
+   Dashboard: Upcoming Events card + Notification bell
+   ========================================================================== */
+
+const DUE_SOON_ICON_META = {
+    TASK: { icon: 'bi-journal-text', bg: 'bg-purple' },
+    ASSIGNMENT: { icon: 'bi-journal-text', bg: 'bg-purple' },
+    EXAM: { icon: 'bi-pencil-square', bg: 'bg-danger' },
+    STUDY_SESSION: { icon: 'bi-book', bg: 'bg-warning' }
+};
+
+async function loadDueSoonWidgets() {
+    const eventsCard = document.getElementById('eventsCard');
+    const notifList = document.getElementById('notifList');
+    if (!eventsCard && !notifList) return;
+
+    let items = [];
+    try {
+        items = await CalendarApi.dueSoon(7);
+    } catch (err) {
+        items = [];
+    }
+
+    if (eventsCard) renderUpcomingEvents(eventsCard, items);
+    if (notifList) renderNotifications(notifList, items);
+}
+
+function renderUpcomingEvents(card, items) {
+    card.querySelectorAll('.event-item, .events-empty').forEach(el => el.remove());
+
+    if (!items.length) {
+        const empty = document.createElement('p');
+        empty.className = 'events-empty text-center text-muted py-3 mb-0';
+        empty.textContent = ' Nothing scheduled. Plan a study session or add an event.';
+        card.appendChild(empty);
+        return;
+    }
+
+    items.slice(0, 5).forEach(item => {
+        const meta = DUE_SOON_ICON_META[item.type] || DUE_SOON_ICON_META.TASK;
+        const when = item.dueDate ? formatDateLabel(item.dueDate) : 'No due date';
+        const subject = item.subject ? item.subject.name : '';
+        const div = document.createElement('div');
+        div.className = 'event-item';
+        div.innerHTML = `
+            <div class="event-icon ${meta.bg}"><i class="bi ${meta.icon}"></i></div>
+            <div><h6>${escapeHtml(item.title)}</h6><small>${escapeHtml(when)}${subject ? ' • ' + escapeHtml(subject) : ''}</small></div>
+        `;
+        card.appendChild(div);
+    });
+}
+
+/** Rebuilds the notification bell dropdown from real due-soon items (or shows "No data to display"). */
+function renderNotifications(container, items) {
+    container.innerHTML = '';
+
+    if (!items.length) {
+        container.innerHTML = '<p class="text-center text-muted py-3 mb-0">No data to display</p>';
+        return;
+    }
+
+    items.slice(0, 8).forEach((item, idx) => {
+        const meta = DUE_SOON_ICON_META[item.type] || DUE_SOON_ICON_META.TASK;
+        const div = document.createElement('div');
+        div.className = 'notif-item unread';
+        div.dataset.id = item.id || idx;
+        div.innerHTML = `<i class="bi ${meta.icon} text-primary"></i><div><p>${escapeHtml(item.notification || item.title)}</p></div>`;
+        container.appendChild(div);
+    });
+}
+
+/* ==========================================================================
    Calendar: real month navigation + day selection
    ========================================================================== */
 
-function initCalendar() {
+async function initCalendar() {
     const monthLabel = document.getElementById('calendarMonthLabel');
     const body = document.getElementById('calendarBody');
     const prevBtn = document.getElementById('calPrev');
@@ -199,19 +593,53 @@ function initCalendar() {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
 
-    // Events keyed as "YYYY-M-D" (month is 0-indexed)
-    const events = {
-        '2026-6-9': 'Database Project due',
-        '2026-6-17': 'Statistics Quiz'
-    };
+    let events = {};
+
+    async function loadEvents() {
+        try {
+            const items = await CalendarApi.items();
+            events = {};
+            items.forEach(item => {
+                if (!item.dueDate) return;
+                const [y, m, d] = item.dueDate.split('-').map(Number);
+                const key = `${y}-${m - 1}-${d}`;
+                if (!events[key]) events[key] = [];
+                events[key].push(item.title);
+            });
+        } catch (err) {
+            showToast(err.message || 'Could not load your calendar events.');
+        }
+    }
 
     const today = new Date();
-    let viewYear = 2026;
-    let viewMonth = 6;
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth();
+
+    function ordinal(n) {
+        const s = ['th', 'st', 'nd', 'rd'];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    function defaultHintText() {
+        const eventDays = [];
+        const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const key = `${viewYear}-${viewMonth}-${day}`;
+            if (events[key] && events[key].length) eventDays.push(day);
+        }
+        if (!eventDays.length) return 'Click any day to see its events.';
+        const parts = eventDays.map(ordinal);
+        const list = parts.length === 1
+            ? parts[0]
+            : `${parts.slice(0, -1).join(', ')} & ${parts[parts.length - 1]}`;
+        return `${list} ${eventDays.length === 1 ? 'has' : 'have'} events. Click any day to select it.`;
+    }
 
     function render() {
         monthLabel.textContent = `${monthNames[viewMonth]} ${viewYear}`;
         body.innerHTML = '';
+        hint.textContent = defaultHintText();
 
         const firstDay = new Date(viewYear, viewMonth, 1).getDay();
         const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -224,20 +652,21 @@ function initCalendar() {
             cell.textContent = day;
 
             const key = `${viewYear}-${viewMonth}-${day}`;
+            const dayEvents = events[key];
             const isToday = today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day;
 
             if (isToday) cell.classList.add('today');
-            if (events[key]) {
+            if (dayEvents && dayEvents.length) {
                 cell.classList.add('event-day');
-                cell.title = events[key];
-                cell.dataset.event = events[key];
+                cell.title = dayEvents.join(', ');
+                cell.dataset.event = dayEvents.join(', ');
             }
 
             cell.addEventListener('click', () => {
                 body.querySelectorAll('td.selected-day').forEach(td => td.classList.remove('selected-day'));
                 cell.classList.add('selected-day');
-                hint.textContent = events[key]
-                    ? `${monthNames[viewMonth]} ${day}: ${events[key]}`
+                hint.textContent = dayEvents && dayEvents.length
+                    ? `${monthNames[viewMonth]} ${day}: ${dayEvents.join(', ')}`
                     : `Selected ${monthNames[viewMonth]} ${day}, ${viewYear}. No events scheduled.`;
             });
 
@@ -262,6 +691,7 @@ function initCalendar() {
         render();
     });
 
+    await loadEvents();
     render();
 }
 
@@ -345,6 +775,7 @@ function initTimer() {
     let running = false;
     let ringing = false;
     let maximized = false;
+    let sessionStartAt = null; 
 
     function format(s) {
         const h = String(Math.floor(s / 3600)).padStart(2, '0');
@@ -357,8 +788,8 @@ function initTimer() {
         const pct = 1 - seconds / totalSeconds;
         const angle = pct * 360;
         const isDark = document.body.getAttribute('data-theme') === 'dark';
-        const trackColor = isDark ? '#2a2e4a' : '#ede9fe';
-        circle.style.background = `conic-gradient(#6d5dfc ${angle}deg, ${trackColor} ${angle}deg)`;
+        const trackColor = isDark ? '#173d2f' : '#d1fae5';
+        circle.style.background = `conic-gradient(#10b981 ${angle}deg, ${trackColor} ${angle}deg)`;
     }
 
     function setControlsDisabled(disabled) {
@@ -385,7 +816,6 @@ function initTimer() {
         circle.classList.remove('ringing');
     }
 
-    /* Puts the Start/Pause button back to its default "ready to start" look. */
     function setButtonIdle(label) {
         btnIcon.className = 'bi bi-play-fill';
         btn.classList.remove('state-paused', 'state-ringing');
@@ -421,6 +851,7 @@ function initTimer() {
         stopRinging();
 
         seconds = totalSeconds;
+        sessionStartAt = null;
         display.textContent = format(seconds);
         circle.style.background = '';
         circle.classList.remove('ringing');
@@ -451,6 +882,10 @@ function initTimer() {
 
             showToast('Time\'s up! Focus session complete.', 'success');
             bumpStudySession();
+
+            const startedAt = sessionStartAt || new Date(Date.now() - totalSeconds * 1000);
+            saveFocusSession(startedAt, new Date(), totalSeconds);
+            sessionStartAt = null; 
             return;
         }
         seconds--;
@@ -475,6 +910,7 @@ function initTimer() {
             btn.title = 'Resume';
             modeLabel.textContent = 'Paused';
         } else {
+            if (!sessionStartAt) sessionStartAt = new Date(); 
             running = true;
             btnIcon.className = 'bi bi-pause-fill';
             btn.classList.remove('state-paused', 'state-ringing');
@@ -515,6 +951,29 @@ function initTimer() {
     display.textContent = format(seconds);
 }
 
+async function saveFocusSession(startedAt, endedAt, totalSeconds) {
+    const toHHMM = (d) => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    let start = startedAt;
+    let end = endedAt;
+    if (toHHMM(start) === toHHMM(end)) {
+        end = new Date(end.getTime() + 60000);
+    }
+
+    const minutes = Math.max(1, Math.round(totalSeconds / 60));
+    try {
+        await PlannerApi.createSession({
+            title: `Focus session (${minutes} min)`,
+            date: toLocalIsoDate(start),
+            startTime: toHHMM(start),
+            endTime: toHHMM(end),
+            sessionType: 'regular',
+            completed: true
+        });
+    } catch (err) {
+        showToast(err.message || 'Focus session finished, but could not be saved.');
+    }
+}
+
 function bumpStudySession() {
     const el = document.getElementById('statSessions');
     if (!el) return;
@@ -540,19 +999,49 @@ const TASK_STATUS_LABELS = { pending: 'Pending', progress: 'In Progress', done: 
 const TASK_URGENCY_ORDER = ['low', 'medium', 'high'];
 const TASK_URGENCY_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
 
-function initTasksTable() {
+async function populateSubjectDatalist(datalistId) {
+    const list = document.getElementById(datalistId);
+    if (!list) return;
+    try {
+        const subjects = await SubjectsApi.list();
+        const existing = new Set(Array.from(list.options).map(o => o.value));
+        subjects.forEach(s => {
+            if (!existing.has(s.name)) {
+                const opt = document.createElement('option');
+                opt.value = s.name;
+                list.appendChild(opt);
+            }
+        });
+    } catch {  }
+}
+
+let tasksCache = [];
+
+async function initTasksTable() {
     const table = document.getElementById('tasksTable');
     if (!table) return;
 
-    const activateStatusPill = (pill) => {
+    await refreshTasksTable();
+    populateSubjectDatalist('newTaskSubjectList');
+
+    const activateStatusPill = async (pill) => {
         const row = pill.closest('tr');
+        const taskId = Number(row.dataset.taskId);
         const current = pill.dataset.status;
         const next = TASK_STATUS_ORDER[(TASK_STATUS_ORDER.indexOf(current) + 1) % TASK_STATUS_ORDER.length];
+
+        try {
+            await TasksApi.update(taskId, { status: next });
+        } catch (err) {
+            showToast(err.message || 'Could not update that task.');
+            return;
+        }
 
         pill.classList.remove('status-pending', 'status-progress', 'status-done');
         pill.classList.add(`status-${next}`);
         pill.dataset.status = next;
         pill.textContent = TASK_STATUS_LABELS[next];
+        row.dataset.status = next;
 
         const wasDone = current === 'done';
         const isDone = next === 'done';
@@ -565,16 +1054,28 @@ function initTasksTable() {
             row.classList.remove('completed-row');
             bumpCompletedCount(-1);
         }
+        applyTaskFilters();
     };
 
-    const activateUrgencyPill = (pill) => {
+    const activateUrgencyPill = async (pill) => {
+        const row = pill.closest('tr');
+        const taskId = Number(row.dataset.taskId);
         const current = pill.dataset.urgency;
         const next = TASK_URGENCY_ORDER[(TASK_URGENCY_ORDER.indexOf(current) + 1) % TASK_URGENCY_ORDER.length];
+
+        try {
+            await TasksApi.update(taskId, { urgency: next });
+        } catch (err) {
+            showToast(err.message || 'Could not update that task.');
+            return;
+        }
 
         pill.classList.remove('urgency-low', 'urgency-medium', 'urgency-high');
         pill.classList.add(`urgency-${next}`);
         pill.dataset.urgency = next;
         pill.textContent = TASK_URGENCY_LABELS[next];
+        row.dataset.urgency = next;
+        applyTaskFilters();
     };
 
     table.addEventListener('click', (e) => {
@@ -587,9 +1088,17 @@ function initTasksTable() {
         const delBtn = e.target.closest('.log-delete-btn');
         if (delBtn) {
             const row = delBtn.closest('tr');
+            const taskId = Number(row.dataset.taskId);
             const name = row.querySelector('.task-name')?.textContent || 'Task';
-            row.remove();
-            showToast(`"${name}" deleted.`);
+            TasksApi.remove(taskId)
+                .then(() => {
+                    row.remove();
+                    tasksCache = tasksCache.filter(t => t.id !== taskId);
+                    ensureTasksEmptyState();
+                    applyTaskFilters();
+                    showToast(`"${name}" deleted.`);
+                })
+                .catch(err => showToast(err.message || 'Could not delete that task.'));
         }
     });
     table.addEventListener('keydown', (e) => {
@@ -601,49 +1110,134 @@ function initTasksTable() {
     });
 
     initAddTaskForm();
+    initTaskFilters();
 }
 
-/* Opens the Edit Task modal pre-filled with the given row's current values. */
+/** Fetches every task for the logged-in user and re-renders the table body. */
+async function refreshTasksTable() {
+    const body = document.getElementById('tasksTableBody');
+    if (!body) return;
+    try {
+        tasksCache = await TasksApi.list();
+    } catch (err) {
+        showToast(err.message || 'Could not load your tasks.');
+        return;
+    }
+    body.innerHTML = '';
+    tasksCache.forEach(task => body.appendChild(buildTaskRow(task)));
+    ensureTasksEmptyState();
+}
+
+function ensureTasksEmptyState() {
+    const body = document.getElementById('tasksTableBody');
+    if (!body) return;
+    const hasRows = !!body.querySelector('tr:not(.empty-state-row):not(.filters-empty-row)');
+    if (!hasRows) {
+        const filtersRow = body.querySelector('.filters-empty-row');
+        if (filtersRow) filtersRow.remove();
+        if (!body.querySelector('.empty-state-row')) {
+            body.appendChild(buildEmptyStateRow(6, {
+                message: 'No tasks yet',
+                buttonLabel: 'Add Task',
+                targetSelector: '#addTaskCard',
+                focusSelector: '#newTaskName'
+            }));
+        }
+    } else {
+        const emptyRow = body.querySelector('.empty-state-row');
+        if (emptyRow) emptyRow.remove();
+    }
+}
+
+function subjectOrTagHtml(subjectName, category) {
+    if (subjectName) return escapeHtml(subjectName);
+    const tagName = category || 'Personal';
+    return tagName.toLowerCase() === 'personal'
+        ? '<span class="badge-personal"><i class="bi bi-person"></i> Personal</span>'
+        : `<span class="badge-personal"><i class="bi bi-tag"></i> ${escapeHtml(tagName)}</span>`;
+}
+
+function buildTaskRow(task) {
+    const urgencyKey = TASK_URGENCY_ORDER.includes(task.urgency) ? task.urgency : 'medium';
+    const statusKey = TASK_STATUS_ORDER.includes(task.status) ? task.status : 'pending';
+    const dueLabel = task.dueDate ? formatDateLabel(task.dueDate) : 'No due date';
+    const subjectName = task.subject ? task.subject.name : null;
+    const subjectCellHtml = subjectOrTagHtml(subjectName, task.category);
+
+    const row = document.createElement('tr');
+    row.dataset.taskId = task.id;
+    row.dataset.dueDate = task.dueDate || '';
+    row.dataset.subjectId = task.subject ? task.subject.id : '';
+    row.dataset.category = task.category || '';
+    row.dataset.urgency = urgencyKey;
+    row.dataset.status = statusKey;
+    if (statusKey === 'done') row.classList.add('completed-row');
+    row.innerHTML = `
+        <td class="task-title-cell"><i class="bi bi-journal-text text-primary me-2"></i><span class="task-name">${escapeHtml(task.title)}</span></td>
+        <td class="task-subject">${subjectCellHtml}</td>
+        <td>${escapeHtml(dueLabel)}</td>
+        <td><span class="urgency-pill urgency-${urgencyKey}" data-urgency="${urgencyKey}" role="button" tabindex="0">${TASK_URGENCY_LABELS[urgencyKey]}</span></td>
+        <td><span class="status-pill status-${statusKey}" data-status="${statusKey}" role="button" tabindex="0">${TASK_STATUS_LABELS[statusKey]}</span></td>
+        <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
+    `;
+    return row;
+}
+
 function openEditTaskModal(row) {
     const modalEl = document.getElementById('editTaskModal');
     if (!row || !modalEl || typeof bootstrap === 'undefined') return;
 
+    const taskId = Number(row.dataset.taskId);
     const nameEl = row.querySelector('.task-name');
     const subjectEl = row.querySelector('.task-subject');
-    const dueEl = row.children[2];
     const urgencyPill = row.querySelector('.urgency-pill');
 
     document.getElementById('editTaskName').value = nameEl ? nameEl.textContent.trim() : '';
-    document.getElementById('editTaskSubject').value = subjectEl ? subjectEl.textContent.trim() : '';
-    document.getElementById('editTaskDue').value = dueEl ? dueEl.textContent.trim() : '';
+    document.getElementById('editTaskSubject').value = row.dataset.subjectId ? (subjectEl ? subjectEl.textContent.trim() : '') : '';
+    document.getElementById('editTaskDue').value = row.dataset.dueDate || '';
     document.getElementById('editTaskUrgency').value = urgencyPill ? urgencyPill.dataset.urgency : 'medium';
 
     const saveBtn = document.getElementById('editTaskSaveBtn');
-    saveBtn.onclick = () => {
+    saveBtn.onclick = async () => {
         const name = document.getElementById('editTaskName').value.trim();
         const subject = document.getElementById('editTaskSubject').value.trim();
-        const dueLabel = document.getElementById('editTaskDue').value.trim() || 'No due date';
+        const dueDate = document.getElementById('editTaskDue').value || null;
         const urgency = document.getElementById('editTaskUrgency').value;
 
         if (!name) { showToast('Enter a task name before saving.'); return; }
-        if (!subject) { showToast('Enter a subject before saving.'); return; }
 
-        if (nameEl) nameEl.textContent = name;
-        if (subjectEl) subjectEl.textContent = subject;
-        if (dueEl) dueEl.textContent = dueLabel;
-        if (urgencyPill) {
-            const urgencyKey = TASK_URGENCY_ORDER.includes(urgency) ? urgency : 'medium';
-            urgencyPill.classList.remove('urgency-low', 'urgency-medium', 'urgency-high');
-            urgencyPill.classList.add(`urgency-${urgencyKey}`);
-            urgencyPill.dataset.urgency = urgencyKey;
-            urgencyPill.textContent = TASK_URGENCY_LABELS[urgencyKey];
+        saveBtn.disabled = true;
+        try {
+            const subjectId = subject ? await SubjectsApi.findOrCreateByName(subject) : null;
+            const category = subjectId ? null : (row.dataset.category || 'Personal');
+            await TasksApi.update(taskId, { title: name, subjectId, dueDate, urgency, category });
+
+            if (nameEl) nameEl.textContent = name;
+            if (subjectEl) subjectEl.innerHTML = subjectOrTagHtml(subject || null, category);
+            row.dataset.dueDate = dueDate || '';
+            row.dataset.subjectId = subjectId || '';
+            row.dataset.category = category || '';
+            row.children[2].textContent = dueDate ? formatDateLabel(dueDate) : 'No due date';
+            if (urgencyPill) {
+                const urgencyKey = TASK_URGENCY_ORDER.includes(urgency) ? urgency : 'medium';
+                urgencyPill.classList.remove('urgency-low', 'urgency-medium', 'urgency-high');
+                urgencyPill.classList.add(`urgency-${urgencyKey}`);
+                urgencyPill.dataset.urgency = urgencyKey;
+                urgencyPill.textContent = TASK_URGENCY_LABELS[urgencyKey];
+                row.dataset.urgency = urgencyKey;
+            }
+
+            row.classList.add('flash-highlight');
+            setTimeout(() => row.classList.remove('flash-highlight'), 1600);
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            showToast(`"${name}" updated.`, 'success');
+            applyTaskFilters();
+        } catch (err) {
+            showToast(err.message || 'Could not save that task.');
+        } finally {
+            saveBtn.disabled = false;
         }
-
-        row.classList.add('flash-highlight');
-        setTimeout(() => row.classList.remove('flash-highlight'), 1600);
-
-        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        showToast(`"${name}" updated.`, 'success');
     };
 
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -654,56 +1248,199 @@ function initAddTaskForm() {
     const addBtn = document.getElementById('addTaskBtn');
     if (!addBtn) return;
 
-    addBtn.addEventListener('click', () => {
-        const nameInput = document.getElementById('newTaskName');
-        const subjectInput = document.getElementById('newTaskSubject');
-        const dueInput = document.getElementById('newTaskDue');
-        const urgencyInput = document.getElementById('newTaskUrgency');
+    const nameInput = document.getElementById('newTaskName');
+    const subjectInput = document.getElementById('newTaskSubject');
+    const dueInput = document.getElementById('newTaskDue');
+    const urgencyInput = document.getElementById('newTaskUrgency');
 
+    const tagModalEl = document.getElementById('taskTagModal');
+    const tagInput = document.getElementById('taskTagInput');
+    const tagConfirmBtn = document.getElementById('taskTagConfirmBtn');
+    const tagQuickPicks = tagModalEl ? tagModalEl.querySelectorAll('.tag-quick-pick') : [];
+
+    async function submitTask({ subjectName, tagName }) {
+        const name = nameInput.value.trim();
+        const urgency = urgencyInput && TASK_URGENCY_ORDER.includes(urgencyInput.value) ? urgencyInput.value : 'medium';
+        const dueDate = dueInput.value || null;
+
+        addBtn.disabled = true;
+        try {
+            const subjectId = subjectName ? await SubjectsApi.findOrCreateByName(subjectName) : null;
+            const task = await TasksApi.create({
+                title: name, subjectId, dueDate, urgency, status: 'pending',
+                category: subjectId ? null : (tagName || 'Personal')
+            });
+            addTaskRow(task);
+
+            nameInput.value = '';
+            subjectInput.value = '';
+            dueInput.value = '';
+            if (urgencyInput) urgencyInput.value = 'medium';
+            nameInput.focus();
+
+            showToast(`"${name}" added to your task list.`, 'success');
+            return true;
+        } catch (err) {
+            showToast(err.message || 'Could not add that task.');
+            return false;
+        } finally {
+            addBtn.disabled = false;
+        }
+    }
+
+    addBtn.addEventListener('click', async () => {
         const name = nameInput.value.trim();
         const subject = subjectInput.value.trim();
-        const urgency = urgencyInput && TASK_URGENCY_ORDER.includes(urgencyInput.value) ? urgencyInput.value : 'medium';
-        const dueLabel = dueInput.value ? formatDateLabel(dueInput.value) : 'No due date';
 
         if (!name) {
             showToast('Enter a task name before adding it.');
             return;
         }
-        if (!subject) {
-            showToast('Enter a subject before adding it.');
+
+        if (subject) {
+            await submitTask({ subjectName: subject });
             return;
         }
 
-        addTaskRow(name, subject, dueLabel, urgency);
-
-        nameInput.value = '';
-        subjectInput.value = '';
-        dueInput.value = '';
-        if (urgencyInput) urgencyInput.value = 'medium';
-        nameInput.focus();
-
-        showToast(`"${name}" added to your task list.`, 'success');
+        if (tagModalEl && typeof bootstrap !== 'undefined') {
+            tagInput.value = 'Personal';
+            bootstrap.Modal.getOrCreateInstance(tagModalEl).show();
+            setTimeout(() => tagInput.focus(), 300);
+        } else {
+            await submitTask({ tagName: 'Personal' });
+        }
     });
+
+    if (tagConfirmBtn) {
+        tagConfirmBtn.addEventListener('click', async () => {
+            const tagName = tagInput.value.trim() || 'Personal';
+            const ok = await submitTask({ tagName });
+            if (ok) bootstrap.Modal.getOrCreateInstance(tagModalEl).hide();
+        });
+    }
+
+    tagQuickPicks.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tagInput.value = btn.dataset.tag;
+            tagInput.focus();
+        });
+    });
+
+    if (tagInput) {
+        tagInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                tagConfirmBtn.click();
+            }
+        });
+    }
 }
 
-/* Inserts a new pending row at the top of the Recent Tasks table. */
-function addTaskRow(name, subject, dueLabel, urgency) {
-    const body = document.querySelector('#tasksTable tbody');
+/* Inserts a freshly-created task at the top of the Recent Tasks table. */
+function addTaskRow(task) {
+    const body = document.getElementById('tasksTableBody');
     if (!body) return;
+    const emptyRow = body.querySelector('.empty-state-row');
+    if (emptyRow) emptyRow.remove();
 
-    const urgencyKey = TASK_URGENCY_ORDER.includes(urgency) ? urgency : 'medium';
-    const row = document.createElement('tr');
+    const row = buildTaskRow(task);
     row.classList.add('flash-highlight');
-    row.innerHTML = `
-        <td class="task-title-cell"><i class="bi bi-journal-text text-primary me-2"></i><span class="task-name">${escapeHtml(name)}</span></td>
-        <td class="task-subject">${escapeHtml(subject)}</td>
-        <td>${escapeHtml(dueLabel)}</td>
-        <td><span class="urgency-pill urgency-${urgencyKey}" data-urgency="${urgencyKey}" role="button" tabindex="0">${TASK_URGENCY_LABELS[urgencyKey]}</span></td>
-        <td><span class="status-pill status-pending" data-status="pending" role="button" tabindex="0">Pending</span></td>
-        <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-    `;
     body.insertBefore(row, body.firstChild);
     setTimeout(() => row.classList.remove('flash-highlight'), 1600);
+    applyTaskFilters();
+}
+
+/* ==========================================================================
+   Tasks page filter
+   ========================================================================== */
+async function initTaskFilters() {
+    const bar = document.getElementById('taskFiltersBar');
+    if (!bar) return;
+
+    const subjectSelect = document.getElementById('taskFilterSubject');
+    if (subjectSelect) {
+        try {
+            const subjects = await SubjectsApi.list();
+            subjects.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                subjectSelect.appendChild(opt);
+            });
+        } catch { /* subject dropdown is a nice-to-have filter - fail silently */ }
+    }
+
+    ['taskFilterSubject', 'taskFilterDue', 'taskFilterUrgency', 'taskFilterStatus'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', applyTaskFilters);
+    });
+    const searchInput = document.getElementById('taskSearch');
+    if (searchInput) searchInput.addEventListener('input', applyTaskFilters);
+
+    applyTaskFilters();
+}
+
+function taskDueBucket(dueDateStr) {
+    if (!dueDateStr) return 'later';
+    const due = new Date(dueDateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((due - today) / 86400000);
+    if (diffDays < 0) return 'overdue';
+    if (diffDays === 0) return 'today';
+    if (diffDays <= 7) return 'week';
+    return 'later';
+}
+
+function applyTaskFilters() {
+    const body = document.getElementById('tasksTableBody');
+    if (!body) return;
+    const rows = Array.from(body.querySelectorAll('tr:not(.empty-state-row):not(.filters-empty-row)'));
+    if (!rows.length) return; 
+    const q = (document.getElementById('taskSearch')?.value || '').trim().toLowerCase();
+    const subjectId = document.getElementById('taskFilterSubject')?.value || '';
+    const due = document.getElementById('taskFilterDue')?.value || '';
+    const urgency = document.getElementById('taskFilterUrgency')?.value || '';
+    const status = document.getElementById('taskFilterStatus')?.value || '';
+
+    let visible = 0;
+    rows.forEach(row => {
+        const show = (!q || row.textContent.toLowerCase().includes(q))
+            && (!subjectId || row.dataset.subjectId === subjectId)
+            && (!due || taskDueBucket(row.dataset.dueDate) === due)
+            && (!urgency || row.dataset.urgency === urgency)
+            && (!status || row.dataset.status === status);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+
+    let emptyRow = body.querySelector('.filters-empty-row');
+    if (visible === 0) {
+        if (!emptyRow) {
+            emptyRow = document.createElement('tr');
+            emptyRow.className = 'filters-empty-row';
+            emptyRow.innerHTML = `<td colspan="6" class="empty-state-cell"><div class="empty-state-block">
+                <i class="fa-solid fa-filter-circle-xmark"></i>
+                <p>No tasks match your filters.</p>
+                <button type="button" class="btn btn-sm btn-outline-secondary filters-clear-btn" id="taskFiltersClearBtn">Clear Filters</button>
+            </div></td>`;
+            body.appendChild(emptyRow);
+            document.getElementById('taskFiltersClearBtn').addEventListener('click', clearTaskFilters);
+        }
+    } else if (emptyRow) {
+        emptyRow.remove();
+    }
+
+    const legacyNoResults = document.getElementById('taskSearchNoResults');
+    if (legacyNoResults) legacyNoResults.style.display = 'none';
+}
+
+function clearTaskFilters() {
+    ['taskSearch', 'taskFilterSubject', 'taskFilterDue', 'taskFilterUrgency', 'taskFilterStatus'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    applyTaskFilters();
 }
 
 /* ==========================================================================
@@ -711,21 +1448,18 @@ function addTaskRow(name, subject, dueLabel, urgency) {
    ========================================================================== */
 
 function initPageSearch() {
-    wireListFilter('taskSearch', '#tasksTable tbody tr');
     wireListFilter('attendanceSearch', '#attendanceLogTable tbody tr');
     initAssignmentsExamsTabs();
     initPageSearchPopup();
 }
 
-/* ==========================================================================
- Assignments & Exams page
-   ========================================================================== */
-function initAssignmentsExamsTabs() {
+/* Assignments & Exams page */
+let aeCache = [];
+
+async function initAssignmentsExamsTabs() {
     const tabs = document.querySelectorAll('#aeTabs .ae-tab');
     const list = document.getElementById('aeList');
     if (!tabs.length || !list) return;
-
-    let items = Array.from(document.querySelectorAll('.ae-item'));
 
     const params = new URLSearchParams(window.location.search);
     let activeType = params.get('type') === 'exam' ? 'exam' : (params.get('type') === 'assignment' ? 'assignment' : 'all');
@@ -733,8 +1467,13 @@ function initAssignmentsExamsTabs() {
     const heading = document.getElementById('aeHeading');
     const headingIcon = document.getElementById('aeHeadingIcon');
     const headingText = document.getElementById('aeHeadingText');
+    const navbarTitle = document.getElementById('greetingTitle');
+    const navbarSub = document.getElementById('greetingSub');
     const searchInput = document.getElementById('itemSearch');
     const noResults = document.getElementById('itemSearchNoResults');
+    const subjectSelect = document.getElementById('aeFilterSubject');
+    const dateFromInput = document.getElementById('aeFilterDateFrom');
+    const dateToInput = document.getElementById('aeFilterDateTo');
 
     function updateHeading() {
         if (!heading) return;
@@ -744,6 +1483,15 @@ function initAssignmentsExamsTabs() {
         const iconClass = activeType === 'exam' ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-book-open';
         if (headingText) headingText.textContent = label;
         if (headingIcon) headingIcon.className = iconClass;
+
+        if (navbarTitle) navbarTitle.textContent = label;
+        if (navbarSub) {
+            navbarSub.textContent = activeType === 'exam'
+                ? 'Track your exam dates before they sneak up on you.'
+                : activeType === 'assignment'
+                ? 'Track deadlines before they sneak up on you.'
+                : 'Track deadlines and exam dates before they sneak up on you.';
+        }
     }
 
     function emptyMessageFor(type) {
@@ -752,25 +1500,61 @@ function initAssignmentsExamsTabs() {
         return { icon: 'fa-solid fa-circle-check', text: "You're all caught up! Nothing due right now." };
     }
 
+    /** Used only when there is truly no data at all yet (not just filtered/completed). */
+    function genuinelyEmptyMessageFor(type) {
+        if (type === 'exam') return { icon: 'fa-solid fa-champagne-glasses', text: 'No exams yet. Add your first exam to stay ahead of test day.' };
+        if (type === 'assignment') return { icon: 'fa-solid fa-note-sticky', text: ' No assignments yet. Create your first assignment to keep track of deadlines.' };
+        return { icon: 'fa-solid fa-note-sticky', text: ' No assignments yet. Create your first assignment to keep track of deadlines.' };
+    }
+
+    function clearAeFilters() {
+        if (searchInput) searchInput.value = '';
+        if (subjectSelect) subjectSelect.value = '';
+        if (dateFromInput) dateFromInput.value = '';
+        if (dateToInput) dateToInput.value = '';
+        render();
+    }
+
     function render() {
+        const items = Array.from(document.querySelectorAll('.ae-item'));
         const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const subjectId = subjectSelect ? subjectSelect.value : '';
+        const dateFrom = dateFromInput ? dateFromInput.value : '';
+        const dateTo = dateToInput ? dateToInput.value : '';
+        const filtersActive = !!(q || subjectId || dateFrom || dateTo);
+
         let visible = 0;
         tabs.forEach(t => t.classList.toggle('active', t.dataset.type === activeType));
         items.forEach(item => {
             const typeOk = activeType === 'all' || item.dataset.type === activeType;
             const textOk = !q || item.textContent.toLowerCase().includes(q);
-            const show = typeOk && textOk;
+            const subjectOk = !subjectId || item.dataset.subjectId === subjectId;
+            const due = item.dataset.dueDate;
+            const dateOk = (!dateFrom || (due && due >= dateFrom)) && (!dateTo || (due && due <= dateTo));
+            const show = typeOk && textOk && subjectOk && dateOk;
             item.style.display = show ? '' : 'none';
             if (show) visible++;
         });
+
         if (noResults) {
-            if (visible === 0) {
-                if (q) {
-                    noResults.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Nothing matches your search.';
-                } else {
-                    const msg = emptyMessageFor(activeType);
-                    noResults.innerHTML = `<i class="${msg.icon}"></i> ${msg.text}`;
-                }
+            if (visible === 0 && aeCache.length === 0) {
+                noResults.innerHTML = buildEmptyStateHtml({
+                    icon: genuinelyEmptyMessageFor(activeType).icon,
+                    message: genuinelyEmptyMessageFor(activeType).text,
+                    buttonLabel: activeType === 'exam' ? 'Add Exam' : activeType === 'assignment' ? 'Add Assignment' : 'Add Item',
+                    targetSelector: '#addAeCard',
+                    focusSelector: '#newAeName'
+                });
+                noResults.style.display = 'block';
+            } else if (visible === 0 && filtersActive) {
+                noResults.innerHTML = `<i class="fa-solid fa-filter-circle-xmark"></i> No assignments/exams match your filters.
+                    <div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary filters-clear-btn" id="aeFiltersClearBtn">Clear Filters</button></div>`;
+                noResults.style.display = 'block';
+                const clearBtn = document.getElementById('aeFiltersClearBtn');
+                if (clearBtn) clearBtn.addEventListener('click', clearAeFilters);
+            } else if (visible === 0) {
+                const msg = emptyMessageFor(activeType);
+                noResults.innerHTML = `<i class="${msg.icon}"></i> ${msg.text}`;
                 noResults.style.display = 'block';
             } else {
                 noResults.style.display = 'none';
@@ -778,8 +1562,15 @@ function initAssignmentsExamsTabs() {
         }
     }
 
-    function refreshItems() {
-        items = Array.from(document.querySelectorAll('.ae-item'));
+    async function refreshItems() {
+        try {
+            aeCache = await AssignmentsExamsApi.list();
+        } catch (err) {
+            showToast(err.message || 'Could not load your assignments/exams.');
+            return;
+        }
+        list.innerHTML = '';
+        aeCache.forEach(item => list.appendChild(buildAeItem(item)));
         render();
     }
 
@@ -792,6 +1583,21 @@ function initAssignmentsExamsTabs() {
     });
 
     if (searchInput) searchInput.addEventListener('input', render);
+    if (subjectSelect) subjectSelect.addEventListener('change', render);
+    if (dateFromInput) dateFromInput.addEventListener('change', render);
+    if (dateToInput) dateToInput.addEventListener('change', render);
+
+    if (subjectSelect) {
+        try {
+            const subjects = await SubjectsApi.list();
+            subjects.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                subjectSelect.appendChild(opt);
+            });
+        } catch { }
+    }
 
     initAddAeForm(refreshItems);
 
@@ -801,60 +1607,89 @@ function initAssignmentsExamsTabs() {
         const delBtn = e.target.closest('.log-delete-btn');
         if (delBtn) {
             const item = delBtn.closest('.ae-item');
+            const itemId = Number(item.dataset.itemId);
             const title = item.querySelector('h6')?.textContent || 'Item';
-            item.remove();
-            showToast(`"${title}" deleted.`);
-            refreshItems();
+            AssignmentsExamsApi.remove(itemId)
+                .then(() => {
+                    item.remove();
+                    aeCache = aeCache.filter(a => a.id !== itemId);
+                    showToast(`"${title}" deleted.`);
+                    render();
+                })
+                .catch(err => showToast(err.message || 'Could not delete that item.'));
         }
     });
 
     updateHeading();
-    render();
+    await refreshItems();
+    populateSubjectDatalist('newAeSubjectList');
 }
 
-/* Opens the Edit Assignment/Exam modal pre-filled with the given item's current values. */
+function buildAeItem(record) {
+    const isExam = record.itemType === 'exam';
+    const subjectName = record.subject ? record.subject.name : 'General';
+    const dueLabel = record.dueDate ? `Due ${formatDateLabel(record.dueDate)}` : 'No due date';
+
+    const item = document.createElement('div');
+    item.className = 'event-item ae-item';
+    item.dataset.type = isExam ? 'exam' : 'assignment';
+    item.dataset.itemId = record.id;
+    item.dataset.dueDate = record.dueDate || '';
+    item.dataset.subjectId = record.subject ? record.subject.id : '';
+    item.innerHTML = `
+        <div class="event-icon ${isExam ? 'bg-danger' : 'bg-purple'}"><i class="bi ${isExam ? 'bi-pencil-square' : 'bi-journal-text'}"></i></div>
+        <div><h6>${escapeHtml(record.title)}</h6><small>${escapeHtml(subjectName)} • ${escapeHtml(dueLabel)}</small></div>
+        <div class="ae-actions"><button class="action-edit-btn" aria-label="Edit item"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete item"><i class="bi bi-trash"></i></button></div>
+    `;
+    return item;
+}
+
 function openEditAeModal(item, onSaved) {
     const modalEl = document.getElementById('editAeModal');
     if (!item || !modalEl || typeof bootstrap === 'undefined') return;
 
+    const itemId = Number(item.dataset.itemId);
     const titleEl = item.querySelector('h6');
     const smallEl = item.querySelector('small');
-    const [currentSubject, currentDue] = smallEl ? smallEl.textContent.split('•').map(s => s.trim()) : ['', ''];
+    const currentSubject = smallEl ? smallEl.textContent.split('•')[0].trim() : '';
 
     document.getElementById('editAeName').value = titleEl ? titleEl.textContent.trim() : '';
     document.getElementById('editAeSubject').value = currentSubject || '';
-    document.getElementById('editAeDue').value = currentDue || '';
+    document.getElementById('editAeDue').value = item.dataset.dueDate || '';
     document.getElementById('editAeType').value = item.dataset.type === 'exam' ? 'exam' : 'assignment';
 
     const saveBtn = document.getElementById('editAeSaveBtn');
-    saveBtn.onclick = () => {
+    saveBtn.onclick = async () => {
         const name = document.getElementById('editAeName').value.trim();
         const subject = document.getElementById('editAeSubject').value.trim();
-        const dueLabel = document.getElementById('editAeDue').value.trim() || 'No due date';
+        const dueDate = document.getElementById('editAeDue').value || null;
         const type = document.getElementById('editAeType').value === 'exam' ? 'exam' : 'assignment';
 
         if (!name) { showToast('Enter a title before saving.'); return; }
         if (!subject) { showToast('Enter a subject before saving.'); return; }
 
-        const isExam = type === 'exam';
-        item.dataset.type = isExam ? 'exam' : 'assignment';
-        if (titleEl) titleEl.textContent = name;
-        if (smallEl) smallEl.textContent = `${subject} • ${dueLabel}`;
+        saveBtn.disabled = true;
+        try {
+            const subjectId = await SubjectsApi.findOrCreateByName(subject);
+            const originalType = item.dataset.type;
+            if (type !== originalType) {
+                await AssignmentsExamsApi.remove(itemId);
+                await AssignmentsExamsApi.create({ title: name, subjectId, dueDate, itemType: type });
+            } else {
+                await AssignmentsExamsApi.update(itemId, { title: name, subjectId, dueDate });
+            }
 
-        const iconWrap = item.querySelector('.event-icon');
-        if (iconWrap) {
-            iconWrap.classList.remove('bg-purple', 'bg-danger');
-            iconWrap.classList.add(isExam ? 'bg-danger' : 'bg-purple');
-            const icon = iconWrap.querySelector('i');
-            if (icon) icon.className = `bi ${isExam ? 'bi-pencil-square' : 'bi-journal-text'}`;
+            item.classList.add('flash-highlight');
+            setTimeout(() => item.classList.remove('flash-highlight'), 1600);
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            showToast(`"${name}" updated.`, 'success');
+            if (onSaved) onSaved();
+        } catch (err) {
+            showToast(err.message || 'Could not save that item.');
+        } finally {
+            saveBtn.disabled = false;
         }
-
-        item.classList.add('flash-highlight');
-        setTimeout(() => item.classList.remove('flash-highlight'), 1600);
-
-        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        showToast(`"${name}" updated.`, 'success');
-        if (onSaved) onSaved();
     };
 
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -865,7 +1700,7 @@ function initAddAeForm(onItemAdded) {
     const addBtn = document.getElementById('addAeBtn');
     if (!addBtn) return;
 
-    addBtn.addEventListener('click', () => {
+    addBtn.addEventListener('click', async () => {
         const nameInput = document.getElementById('newAeName');
         const subjectInput = document.getElementById('newAeSubject');
         const typeInput = document.getElementById('newAeType');
@@ -874,7 +1709,7 @@ function initAddAeForm(onItemAdded) {
         const name = nameInput.value.trim();
         const subject = subjectInput.value.trim();
         const type = typeInput && typeInput.value === 'exam' ? 'exam' : 'assignment';
-        const dueLabel = dueInput.value ? `Due ${formatDateLabel(dueInput.value)}` : 'No due date';
+        const dueDate = dueInput.value || null;
 
         if (!name) {
             showToast('Enter a title before adding it.');
@@ -885,35 +1720,25 @@ function initAddAeForm(onItemAdded) {
             return;
         }
 
-        addAeItem(name, subject, dueLabel, type);
+        addBtn.disabled = true;
+        try {
+            const subjectId = await SubjectsApi.findOrCreateByName(subject);
+            await AssignmentsExamsApi.create({ title: name, subjectId, dueDate, itemType: type });
 
-        nameInput.value = '';
-        subjectInput.value = '';
-        dueInput.value = '';
-        if (typeInput) typeInput.value = 'assignment';
-        nameInput.focus();
+            nameInput.value = '';
+            subjectInput.value = '';
+            dueInput.value = '';
+            if (typeInput) typeInput.value = 'assignment';
+            nameInput.focus();
 
-        showToast(`"${name}" added to your ${type === 'exam' ? 'exams' : 'assignments'}.`, 'success');
-        if (onItemAdded) onItemAdded();
+            showToast(`"${name}" added to your ${type === 'exam' ? 'exams' : 'assignments'}.`, 'success');
+            if (onItemAdded) await onItemAdded();
+        } catch (err) {
+            showToast(err.message || 'Could not add that item.');
+        } finally {
+            addBtn.disabled = false;
+        }
     });
-}
-
-/* Inserts a new assignment/exam entry at the top of the Assignments & Exams list. */
-function addAeItem(name, subject, dueLabel, type) {
-    const list = document.getElementById('aeList');
-    if (!list) return;
-
-    const isExam = type === 'exam';
-    const item = document.createElement('div');
-    item.className = 'event-item ae-item flash-highlight';
-    item.dataset.type = isExam ? 'exam' : 'assignment';
-    item.innerHTML = `
-        <div class="event-icon ${isExam ? 'bg-danger' : 'bg-purple'}"><i class="bi ${isExam ? 'bi-pencil-square' : 'bi-journal-text'}"></i></div>
-        <div><h6>${escapeHtml(name)}</h6><small>${escapeHtml(subject)} • ${escapeHtml(dueLabel)}</small></div>
-        <div class="ae-actions"><button class="action-edit-btn" aria-label="Edit item"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete item"><i class="bi bi-trash"></i></button></div>
-    `;
-    list.insertBefore(item, list.firstChild);
-    setTimeout(() => item.classList.remove('flash-highlight'), 1600);
 }
 
 function wireListFilter(inputId, itemSelector) {
@@ -934,7 +1759,7 @@ function wireListFilter(inputId, itemSelector) {
     });
 }
 
-/* Navbar search icon -> popup search bar (used on Tasks, Assignments & Exams, Attendance) */
+/* Navbar search icon  */
 function initPageSearchPopup() {
     const toggle = document.getElementById('pageSearchToggle');
     const popup = document.getElementById('pageSearchPopup');
@@ -977,6 +1802,169 @@ function bumpCompletedCount(delta) {
 }
 
 /* ==========================================================================
+   Dashboard stat cards: real counts from the database
+   ========================================================================== */
+
+function currentWeekRangeIso() {
+    const isoMonday = getMondayISO(new Date());
+    const sunday = new Date(isoMonday + 'T00:00:00');
+    sunday.setDate(sunday.getDate() + 6);
+    return { isoMonday, isoSunday: toLocalIsoDate(sunday) };
+}
+
+async function loadDashboardStats() {
+    const examsEl = document.getElementById('statExams');
+    const assignmentsEl = document.getElementById('statAssignments');
+    const sessionsEl = document.getElementById('statSessions');
+    const completedEl = document.getElementById('statCompleted');
+    if (!examsEl && !assignmentsEl && !sessionsEl && !completedEl) return;
+
+    const { isoMonday, isoSunday } = currentWeekRangeIso();
+
+    if (examsEl) {
+        try {
+            const todayIso = toLocalIsoDate();
+            const sevenDaysIso = toLocalIsoDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+            const exams = await AssignmentsExamsApi.list('exam');
+            const upcoming = exams.filter(e => e.dueDate && e.dueDate >= todayIso && e.dueDate <= sevenDaysIso).length;
+            examsEl.dataset.count = upcoming;
+        } catch (err) {
+            examsEl.dataset.count = 0;
+        }
+    }
+
+    if (assignmentsEl) {
+        try {
+            const assignments = await AssignmentsExamsApi.list('assignment');
+            const pending = assignments.filter(a => a.submissionStatus !== 'submitted').length;
+            assignmentsEl.dataset.count = pending;
+        } catch (err) {
+            assignmentsEl.dataset.count = 0;
+        }
+    }
+
+    if (sessionsEl) {
+        try {
+            const sessions = await PlannerApi.listSessions(isoMonday, isoSunday);
+            sessionsEl.dataset.count = (sessions || []).length;
+        } catch (err) {
+            sessionsEl.dataset.count = 0;
+        }
+    }
+
+    if (completedEl) {
+        try {
+            const doneTasks = await TasksApi.list('done');
+            const doneThisWeek = doneTasks.filter(t => t.dueDate && t.dueDate >= isoMonday && t.dueDate <= isoSunday).length;
+            completedEl.dataset.count = doneThisWeek;
+        } catch (err) {
+            completedEl.dataset.count = 0;
+        }
+    }
+}
+
+const GETTING_STARTED_VISIBLE_KEY = 'levelup-show-getting-started';
+
+const GETTING_STARTED_TASKS = [
+    { key: 'subject', label: 'Add your first Subject' },
+    { key: 'assignment', label: 'Add your first Assignment' },
+    { key: 'timetable', label: 'Create your Timetable' },
+    { key: 'studySession', label: 'Schedule your first Study Session' },
+    { key: 'profile', label: 'Complete your Profile' }
+];
+
+async function initGettingStartedChecklist() {
+    const row = document.getElementById('gettingStartedRow');
+    const card = document.getElementById('gettingStartedCard');
+    if (!row || !card) return;
+
+    let shouldShow = false;
+    try { shouldShow = localStorage.getItem(GETTING_STARTED_VISIBLE_KEY) === 'true'; } catch { shouldShow = false; }
+    if (!shouldShow) return;
+
+    const progress = await loadGettingStartedProgress();
+    if (!progress) return; 
+
+    renderGettingStartedCard(card, progress);
+    row.style.display = '';
+}
+
+async function loadGettingStartedProgress() {
+    try {
+        const [subjects, assignments, lectures, sessions, profile] = await Promise.all([
+            SubjectsApi.list().catch(() => []),
+            AssignmentsExamsApi.list('assignment').catch(() => []),
+            TimetableApi.list().catch(() => []),
+            PlannerApi.listSessions().catch(() => []),
+            ProfileApi.get().catch(() => null)
+        ]);
+
+        const profileComplete = !!(profile && profile.name && profile.faculty && profile.semester);
+
+        return {
+            subject: subjects.length > 0,
+            assignment: assignments.length > 0,
+            timetable: lectures.length > 0,
+            studySession: (sessions || []).length > 0,
+            profile: profileComplete
+        };
+    } catch (err) {
+        return null;
+    }
+}
+
+function renderGettingStartedCard(card, progress) {
+    const doneCount = GETTING_STARTED_TASKS.filter(t => progress[t.key]).length;
+    const total = GETTING_STARTED_TASKS.length;
+
+    if (doneCount === total) {
+        card.innerHTML = `
+            <button type="button" class="getting-started-dismiss" id="gsDismissBtn" aria-label="Dismiss">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <div class="getting-started-congrats">
+                <div class="onboarding-emoji onboarding-checkmark">🎉</div>
+                <h4>Congratulations!</h4>
+                <p class="text-muted mb-0">Your LevelUp workspace is fully configured.</p>
+            </div>
+        `;
+    } else {
+        const itemsHtml = GETTING_STARTED_TASKS.map(task => {
+            const done = !!progress[task.key];
+            return `
+                <div class="getting-started-item ${done ? 'done' : ''}">
+                    <span class="gs-check">${done ? '<i class="bi bi-check-lg"></i>' : ''}</span>
+                    <span class="gs-label">${escapeHtml(task.label)}</span>
+                </div>
+            `;
+        }).join('');
+
+        card.innerHTML = `
+            <button type="button" class="getting-started-dismiss" id="gsDismissBtn" aria-label="Dismiss">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <div class="getting-started-header">
+                <h4><i class="fa-solid fa-bullseye"></i> Getting Started</h4>
+                <span class="getting-started-count">${doneCount}/${total} Completed</span>
+            </div>
+            <div class="getting-started-progress">
+                <div class="getting-started-progress-bar" style="width:${(doneCount / total) * 100}%"></div>
+            </div>
+            <div class="getting-started-list">${itemsHtml}</div>
+        `;
+    }
+
+    const dismissBtn = document.getElementById('gsDismissBtn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            try { localStorage.setItem(GETTING_STARTED_VISIBLE_KEY, 'false'); } catch { /* storage unavailable - just hide it for this view */ }
+            const row = document.getElementById('gettingStartedRow');
+            if (row) row.style.display = 'none';
+        });
+    }
+}
+
+/* ==========================================================================
    Stat card count-up animation
    ========================================================================== */
 
@@ -1004,39 +1992,46 @@ function animateCount(el, target, duration = 900) {
    Attendance Tracker - mark lectures attended/missed, per-subject stats
    ========================================================================== */
 
-const ATTENDANCE_SUBJECT_COLORS = {
-    'Object Oriented Programming': '#7c3aed',
-    'Database Systems': '#2563eb',
-    'Inferential Statistics': '#ef4444',
-    'Data Structures & Algorithms': '#22c55e',
-    'Linear Algebra': '#f59e0b'
-};
-
-function initAttendance() {
+async function initAttendance() {
     initAttendanceLogRows();
+    await renderQuickMarkList();
     initQuickMarkLectures();
-    recomputeAttendance();
-    updateAttendanceLogEmptyState();
+    await refreshAttendanceLog();
 }
 
-/* Click a Present/Absent pill in the log table to flip it; trash icon
-   removes the row entirely. Both trigger a full recompute. */
+async function getTodaysMarkedLectures() {
+    const todayIso = toLocalIsoDate();
+    let records;
+    try {
+        records = await AttendanceApi.list();
+    } catch (err) {
+        return new Map();
+    }
+    const marked = new Map();
+    records.forEach(record => {
+        if (!record.subject || !record.date) return;
+        if (record.date.slice(0, 10) !== todayIso) return;
+        const status = record.status === 'absent' ? 'absent' : 'present';
+        const key = record.lectureId != null ? `lecture:${record.lectureId}` : `subject:${record.subject.name}`;
+        marked.set(key, status);
+    });
+    return marked;
+}
+
 function initAttendanceLogRows() {
     const body = document.getElementById('attendanceLogBody');
     if (!body) return;
 
     body.addEventListener('click', (e) => {
         const pill = e.target.closest('.status-pill');
-        if (pill) {
-            toggleAttendancePill(pill);
-            recomputeAttendance();
-            return;
-        }
+        if (pill) { toggleAttendancePill(pill); return; }
         const delBtn = e.target.closest('.log-delete-btn');
         if (delBtn) {
-            delBtn.closest('tr').remove();
-            recomputeAttendance();
-            updateAttendanceLogEmptyState();
+            const row = delBtn.closest('tr');
+            const recordId = Number(row.dataset.recordId);
+            AttendanceApi.remove(recordId)
+                .then(() => { row.remove(); updateAttendanceLogEmptyState(); recomputeAttendance(); })
+                .catch(err => showToast(err.message || 'Could not delete that record.'));
         }
     });
 
@@ -1046,15 +2041,21 @@ function initAttendanceLogRows() {
         if (!pill) return;
         e.preventDefault();
         toggleAttendancePill(pill);
-        recomputeAttendance();
     });
 }
 
-function toggleAttendancePill(pill) {
-    const order = ['present', 'absent', 'cancelled'];
-    const idx = order.indexOf(pill.dataset.status);
-    const next = order[(idx + 1) % order.length];
+async function toggleAttendancePill(pill) {
+    const row = pill.closest('tr');
+    const recordId = Number(row.dataset.recordId);
+    const next = pill.dataset.status === 'present' ? 'absent' : 'present';
+    try {
+        await AttendanceApi.update(recordId, { status: next });
+    } catch (err) {
+        showToast(err.message || 'Could not update that record.');
+        return;
+    }
     setAttendancePill(pill, next);
+    recomputeAttendance();
 }
 
 function setAttendancePill(pill, status) {
@@ -1067,33 +2068,112 @@ function setAttendancePill(pill, status) {
     pill.textContent = labelForStatus[status] || 'Present';
 }
 
-/* "Today's Lectures" quick-mark card */
+async function renderQuickMarkList() {
+    const list = document.getElementById('quickMarkList');
+    if (!list) return;
+
+    let lectures;
+    let markedLectures;
+    try {
+        [lectures, markedLectures] = await Promise.all([TimetableApi.list(), getTodaysMarkedLectures()]);
+    } catch (err) {
+        showToast(err.message || 'Could not load your timetable.');
+        lectures = [];
+        markedLectures = new Map();
+    }
+
+    const today = getTodayDayAbbr();
+    const todays = lectures
+        .filter(l => l.dayOfWeek === today)
+        .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+    if (!todays.length) {
+        list.innerHTML = buildEmptyStateHtml({
+            icon: 'fa-solid fa-calendar-day',
+            message: 'No lectures scheduled for today',
+            buttonLabel: 'Add Lecture',
+            targetSelector: '#addTimetableCard',
+            focusSelector: '#ttMainSubjectInput'
+        });
+        return;
+    }
+
+    list.innerHTML = todays.map(l => {
+        const subjectName = l.subject ? l.subject.name : 'General';
+        const module = l.location || 'Lecture';
+        const icon = quickMarkIconFor(module);
+        const markedStatus = markedLectures.get(`lecture:${l.id}`) || markedLectures.get(`subject:${subjectName}`);
+        const isMarked = Boolean(markedStatus);
+        return `
+            <div class="quick-mark-item${isMarked ? ' marked' : ''}" data-lecture-id="${l.id}" data-subject-id="${l.subject ? l.subject.id : ''}" data-subject="${escapeHtml(subjectName)}" data-lecture="${escapeHtml(subjectName + ' (' + module + ')')}">
+                <div class="quick-mark-info">
+                    <i class="${icon} text-primary"></i>
+                    <div>
+                        <h6>${escapeHtml(subjectName)}</h6>
+                        <small>${escapeHtml(module)} • ${formatTimeRange(l.startTime, l.endTime)}</small>
+                    </div>
+                </div>
+                <div class="quick-mark-actions">
+                    <button class="quick-mark-btn present${markedStatus === 'present' ? ' selected' : ''}" data-action="present"${isMarked ? ' disabled' : ''}><i class="bi bi-check-lg"></i> Present</button>
+                    <button class="quick-mark-btn absent${markedStatus === 'absent' ? ' selected' : ''}" data-action="absent"${isMarked ? ' disabled' : ''}><i class="bi bi-x-lg"></i> Absent</button>
+                    <button class="quick-mark-btn cancelled" data-action="cancelled"${isMarked ? ' disabled' : ''}><i class="bi bi-dash-circle"></i> Cancelled</button>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function quickMarkIconFor(module) {
+    const key = (module || '').toLowerCase();
+    if (key.includes('lab') || key.includes('practical')) return 'bi bi-hdd-stack';
+    if (key.includes('tutorial')) return 'bi bi-people';
+    return 'bi bi-book';
+}
+
 function initQuickMarkLectures() {
     const items = document.querySelectorAll('.quick-mark-item');
     items.forEach(item => {
         const buttons = item.querySelectorAll('.quick-mark-btn');
         buttons.forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const status = btn.dataset.action; // 'present' | 'absent' | 'cancelled'
                 const subject = item.dataset.subject;
                 const lecture = item.dataset.lecture;
+                const lectureId = item.dataset.lectureId ? Number(item.dataset.lectureId) : null;
 
-                addAttendanceRow(lecture, subject, formatTodayLabel(), status, true);
+                buttons.forEach(b => b.disabled = true);
 
-                buttons.forEach(b => {
-                    b.disabled = true;
-                    b.classList.toggle('selected', b === btn);
-                });
-                item.classList.add('marked');
-
-                if (status === 'present') {
-                    showToast(`Marked "${lecture}" as attended.`, 'success');
-                } else if (status === 'cancelled') {
+                if (status === 'cancelled') {
+                    buttons.forEach(b => b.classList.toggle('selected', b === btn));
+                    item.classList.add('marked');
                     showToast(`Marked "${lecture}" as cancelled.`);
-                } else {
-                    showToast(`Marked "${lecture}" as missed.`);
+                    return;
                 }
-                recomputeAttendance();
+
+                try {
+                    const subjectId = await SubjectsApi.findOrCreateByName(subject);
+                    const record = await AttendanceApi.create({
+                        subjectId, lectureId, date: toLocalIsoDate(), status
+                    });
+                    showToast(status === 'present' ? `Marked "${lecture}" as attended.` : `Marked "${lecture}" as missed.`, status === 'present' ? 'success' : 'default');
+
+                    await refreshAttendanceLog();
+                    const newRow = document.querySelector(`#attendanceLogBody tr[data-record-id="${record.id}"]`);
+                    if (newRow) {
+                        newRow.classList.add('flash-highlight');
+                        setTimeout(() => newRow.classList.remove('flash-highlight'), 1600);
+                    }
+                    await renderQuickMarkList();
+                    initQuickMarkLectures(); 
+                } catch (err) {
+                    if (err.status === 409) {
+                        showToast('This lecture was already marked for today.');
+                        await renderQuickMarkList();
+                        initQuickMarkLectures();
+                        return;
+                    }
+                    buttons.forEach(b => b.disabled = false);
+                    showToast(err.message || 'Could not record attendance.');
+                }
             });
         });
     });
@@ -1107,47 +2187,54 @@ function updateAttendanceLogEmptyState() {
 
     if (!hasRows) {
         if (!emptyRow) {
-            emptyRow = document.createElement('tr');
-            emptyRow.className = 'empty-state-row';
-            emptyRow.innerHTML = '<td colspan="5" class="timetable-empty-cell"><i class="fa-solid fa-clipboard-list"></i> No attendance records yet! mark a lecture to get started.</td>';
-            body.appendChild(emptyRow);
+            body.appendChild(buildEmptyStateRow(5, {
+                icon: 'fa-solid fa-clipboard-list',
+                message: ' No attendance records available yet.',
+                buttonLabel: 'Mark Attendance',
+                targetSelector: '#todayLecturesCard',
+                focusSelector: null
+            }));
         }
     } else if (emptyRow) {
         emptyRow.remove();
     }
 }
 
-/* Inserts a new row at the top of the Attendance Log table. */
-function addAttendanceRow(lecture, subject, dateLabel, status, highlight) {
+async function refreshAttendanceLog() {
     const body = document.getElementById('attendanceLogBody');
     if (!body) return;
-    const existingEmptyRow = body.querySelector('.empty-state-row');
-    if (existingEmptyRow) existingEmptyRow.remove();
+    let records;
+    try {
+        records = await AttendanceApi.list();
+    } catch (err) {
+        showToast(err.message || 'Could not load your attendance records.');
+        return;
+    }
+    body.innerHTML = '';
+    records.forEach(record => body.appendChild(buildAttendanceRow(record)));
+    updateAttendanceLogEmptyState();
+    recomputeAttendance();
+}
 
-    const iconByStatus = {
-        present: 'bi bi-book text-success me-2',
-        absent: 'bi bi-book text-danger me-2',
-        cancelled: 'bi bi-calendar-x text-warning me-2'
-    };
-    const pillClassByStatus = { present: 'status-done', absent: 'status-missed', cancelled: 'status-cancelled' };
-    const pillLabelByStatus = { present: 'Present', absent: 'Absent', cancelled: 'Cancelled' };
-
-    const iconClass = iconByStatus[status] || iconByStatus.present;
-    const pillClass = pillClassByStatus[status] || 'status-done';
-    const pillLabel = pillLabelByStatus[status] || 'Present';
+function buildAttendanceRow(record) {
+    const subjectName = record.subject ? record.subject.name : 'General';
+    const dateLabel = formatDateLabel(record.date);
+    const iconByStatus = { present: 'bi bi-book text-success me-2', absent: 'bi bi-book text-danger me-2' };
+    const pillClassByStatus = { present: 'status-done', absent: 'status-missed' };
+    const pillLabelByStatus = { present: 'Present', absent: 'Absent' };
+    const status = record.status === 'absent' ? 'absent' : 'present';
 
     const row = document.createElement('tr');
-    row.dataset.subject = subject;
-    if (highlight) row.classList.add('flash-highlight');
+    row.dataset.recordId = record.id;
+    row.dataset.subject = subjectName;
     row.innerHTML = `
-        <td class="task-title-cell"><i class="${iconClass}"></i><span class="task-name">${escapeHtml(lecture)}</span></td>
-        <td class="task-subject">${escapeHtml(subject)}</td>
+        <td class="task-title-cell"><i class="${iconByStatus[status]}"></i><span class="task-name">${escapeHtml(subjectName)} session</span></td>
+        <td class="task-subject">${escapeHtml(subjectName)}</td>
         <td>${escapeHtml(dateLabel)}</td>
-        <td><span class="status-pill ${pillClass}" data-status="${status}" role="button" tabindex="0">${pillLabel}</span></td>
+        <td><span class="status-pill ${pillClassByStatus[status]}" data-status="${status}" role="button" tabindex="0">${pillLabelByStatus[status]}</span></td>
         <td><button class="log-delete-btn" aria-label="Delete record"><i class="bi bi-trash"></i></button></td>
     `;
-    body.insertBefore(row, body.firstChild);
-    if (highlight) setTimeout(() => row.classList.remove('flash-highlight'), 1600);
+    return row;
 }
 
 function escapeHtml(str) {
@@ -1156,8 +2243,45 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+
+function buildEmptyStateHtml({ icon = 'fa-solid fa-inbox', message, buttonLabel, buttonHref, targetSelector, focusSelector }) {
+    let button = '';
+    if (buttonLabel) {
+        const attrs = buttonHref
+            ? `data-empty-href="${escapeHtml(buttonHref)}"`
+            : `data-empty-target="${escapeHtml(targetSelector || '')}" data-empty-focus="${escapeHtml(focusSelector || '')}"`;
+        button = `<button type="button" class="btn btn-sm btn-primary empty-state-btn" ${attrs}><i class="bi bi-plus-lg"></i> ${escapeHtml(buttonLabel)}</button>`;
+    }
+    return `<div class="empty-state-block"><i class="${icon}"></i><p>${escapeHtml(message)}</p>${button}</div>`;
+}
+
+/** Same as buildEmptyStateHtml, but wrapped in a <tr><td colspan=...> for table bodies. */
+function buildEmptyStateRow(colspan, opts) {
+    const row = document.createElement('tr');
+    row.className = 'empty-state-row';
+    row.innerHTML = `<td colspan="${colspan}" class="empty-state-cell">${buildEmptyStateHtml(opts)}</td>`;
+    return row;
+}
+
+function initEmptyStateButtons() {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.empty-state-btn');
+        if (!btn) return;
+
+        if (btn.dataset.emptyHref) {
+            window.location.href = btn.dataset.emptyHref;
+            return;
+        }
+        const target = btn.dataset.emptyTarget ? document.querySelector(btn.dataset.emptyTarget) : null;
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const focusEl = btn.dataset.emptyFocus ? document.querySelector(btn.dataset.emptyFocus) : null;
+        if (focusEl) setTimeout(() => focusEl.focus(), 400);
+    });
+}
+
 function formatTodayLabel() {
-    return formatDateLabel(new Date().toISOString().slice(0, 10));
+    return formatDateLabel(toLocalIsoDate());
 }
 
 function formatDateLabel(isoDate) {
@@ -1167,8 +2291,6 @@ function formatDateLabel(isoDate) {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-/* Recalculates overall + per-subject attendance from every row currently
-   in the log table and re-renders the stat cards and subject bars. */
 function recomputeAttendance() {
     const rows = document.querySelectorAll('#attendanceLogBody tr');
     const subjectStats = {};
@@ -1214,14 +2336,14 @@ function renderAttendanceSubjectList(subjectStats) {
 
     const subjects = Object.keys(subjectStats).sort();
     if (!subjects.length) {
-        list.innerHTML = '<p class="text-muted mb-0">No attendance records yet! mark a lecture to get started.</p>';
+        list.innerHTML = '<p class="text-muted mb-0"> No attendance records available yet.</p>';
         return;
     }
 
     list.innerHTML = subjects.map(subject => {
         const { present, total } = subjectStats[subject];
         const pct = total ? Math.round((present / total) * 100) : 0;
-        const color = ATTENDANCE_SUBJECT_COLORS[subject] || '#6d5dfc';
+        const color = getMainSubjectColor(subject);
 
         let pillClass, pillLabel;
         if (pct >= 85) { pillClass = 'green-pill'; pillLabel = 'Excellent'; }
@@ -1249,34 +2371,24 @@ function renderAttendanceSubjectList(subjectStats) {
 }
 
 /* ==========================================================================
-   Weekly Lecture Timetable - frontend-only schedule builder
+   Weekly Lecture Timetable
    ========================================================================== */
 
 const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/* Weekend days are treated as "holiday" days -no lectures ever land here,
-   so they're natural candidates for extra, lighter study time. */
 const WEEKEND_DAYS = ['Sat', 'Sun'];
 function isWeekend(day) { return WEEKEND_DAYS.includes(day); }
 
-/* Colors are assigned per MAIN SUBJECT (not per module), so every module
-   of the same main subject (Lecture, Tutorial, Practical...) shares a color
-   in the timetable */
-const MAIN_SUBJECT_COLORS = {
-    'object oriented programming': '#7c3aed',
-    'data structures & algorithms': '#22c55e',
-    'inferential statistics': '#ef4444',
-    'linear algebra': '#f59e0b',
-    'real analysis': '#0ea5e9',
-    'database systems': '#2563eb'
-};
+function getTodayDayAbbr() {
+    return DAY_ORDER[(new Date().getDay() + 6) % 7]; // JS getDay(): 0=Sun..6=Sat
+}
+
 const MAIN_SUBJECT_PALETTE = ['#7c3aed', '#22c55e', '#ef4444', '#f59e0b', '#2563eb', '#0ea5e9', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
 let mainSubjectColorAssignments = {};
 
 function getMainSubjectColor(subject) {
     const key = (subject || '').trim().toLowerCase();
-    if (!key) return '#6d5dfc';
-    if (MAIN_SUBJECT_COLORS[key]) return MAIN_SUBJECT_COLORS[key];
+    if (!key) return '#10b981';
     if (!mainSubjectColorAssignments[key]) {
         const usedCount = Object.keys(mainSubjectColorAssignments).length;
         mainSubjectColorAssignments[key] = MAIN_SUBJECT_PALETTE[usedCount % MAIN_SUBJECT_PALETTE.length];
@@ -1284,28 +2396,15 @@ function getMainSubjectColor(subject) {
     return mainSubjectColorAssignments[key];
 }
 
-/* In-memory only for now (no backend yet), resets on reload. */
-let timetableLectures = [
-    { id: 1, day: 'Mon', start: '08:00', end: '10:00', mainSubject: 'Object Oriented Programming', module: 'Lecture' },
-    { id: 2, day: 'Mon', start: '11:00', end: '13:00', mainSubject: 'Database Systems', module: 'Lab' },
-    { id: 3, day: 'Tue', start: '09:00', end: '10:30', mainSubject: 'Inferential Statistics', module: 'Lecture' },
-    { id: 4, day: 'Tue', start: '13:00', end: '14:30', mainSubject: 'Linear Algebra', module: 'Tutorial' },
-    { id: 5, day: 'Wed', start: '08:00', end: '09:30', mainSubject: 'Data Structures & Algorithms', module: 'Lecture' },
-    { id: 6, day: 'Wed', start: '10:00', end: '12:00', mainSubject: 'Database Systems', module: 'Lecture' },
-    { id: 7, day: 'Thu', start: '09:00', end: '10:30', mainSubject: 'Object Oriented Programming', module: 'Practical' },
-    { id: 8, day: 'Thu', start: '11:00', end: '12:30', mainSubject: 'Inferential Statistics', module: 'Tutorial' },
-    { id: 9, day: 'Fri', start: '08:00', end: '09:30', mainSubject: 'Linear Algebra', module: 'Lecture' },
-    { id: 10, day: 'Fri', start: '10:00', end: '11:30', mainSubject: 'Data Structures & Algorithms', module: 'Practical' }
-];
-let timetableNextId = 11;
+let timetableLectures = [];
 
-function initTimetable() {
-    renderTimetable();
+async function initTimetable() {
+    await refreshTimetable();
 
     const addBtn = document.getElementById('addTimetableBtn');
     if (!addBtn) return;
 
-    addBtn.addEventListener('click', () => {
+    addBtn.addEventListener('click', async () => {
         const day = document.getElementById('ttDaySelect').value;
         const start = document.getElementById('ttStartInput').value;
         const end = document.getElementById('ttEndInput').value;
@@ -1325,19 +2424,111 @@ function initTimetable() {
             return;
         }
 
-        timetableLectures.push({ id: timetableNextId++, day, start, end, mainSubject, module: module || 'Lecture' });
-        renderTimetable();
-        showToast(`Added ${mainSubject} to ${dayFullName(day)}.`, 'success');
+        addBtn.disabled = true;
+        try {
+            const subjectId = await SubjectsApi.findOrCreateByName(mainSubject);
+            const payload = { subjectId, dayOfWeek: day, startTime: start, endTime: end, location: module || 'Lecture' };
+            await createLectureOrResolveConflict(payload, mainSubject);
+        } catch (err) {
+            showToast(err.message || 'Could not add that lecture.');
+        } finally {
+            addBtn.disabled = false;
+        }
     });
 
     const table = document.getElementById('timetableTable');
-    table.addEventListener('click', (e) => {
+    table.addEventListener('click', async (e) => {
         const delBtn = e.target.closest('.timetable-delete-btn');
         if (!delBtn) return;
         const id = parseInt(delBtn.closest('.tt-block').dataset.id, 10);
-        timetableLectures = timetableLectures.filter(l => l.id !== id);
-        renderTimetable();
+        try {
+            await TimetableApi.remove(id);
+            await refreshTimetable();
+            await refreshTodayLectures();
+        } catch (err) {
+            showToast(err.message || 'Could not remove that lecture.');
+        }
     });
+}
+
+async function refreshTodayLectures() {
+    await renderQuickMarkList();
+    initQuickMarkLectures();
+}
+
+async function createLectureOrResolveConflict(payload, subjectLabel) {
+    try {
+        await TimetableApi.create(payload);
+        await refreshTimetable();
+        await refreshTodayLectures();
+        document.getElementById('ttMainSubjectInput').value = '';
+        document.getElementById('ttModuleInput').value = '';
+        document.getElementById('ttMainSubjectInput').focus();
+        showToast(`Added ${subjectLabel} to ${dayFullName(payload.dayOfWeek)}.`, 'success');
+    } catch (err) {
+        if (err.status === 409 && err.data && err.data.conflict) {
+            await promptLectureConflict(err.data.conflict, payload, subjectLabel);
+            return;
+        }
+        throw err;
+    }
+}
+
+function promptLectureConflict(existingLecture, newPayload, subjectLabel) {
+    return new Promise((resolve) => {
+        const modalEl = document.getElementById('lectureConflictModal');
+        const existingLine = document.getElementById('lectureConflictExisting');
+        existingLine.textContent =
+            `${existingLecture.subject.name} - ${dayFullName(existingLecture.dayOfWeek)}, ${formatTimeRange(existingLecture.startTime, existingLecture.endTime)}`;
+
+        const keepExistingBtn = document.getElementById('keepExistingLectureBtn');
+        const keepNewBtn = document.getElementById('keepNewLectureBtn');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        const freshKeepExisting = keepExistingBtn.cloneNode(true);
+        keepExistingBtn.replaceWith(freshKeepExisting);
+        const freshKeepNew = keepNewBtn.cloneNode(true);
+        keepNewBtn.replaceWith(freshKeepNew);
+
+        freshKeepExisting.addEventListener('click', () => {
+            showToast('Kept the existing lecture. The new one was not added.', 'default');
+            resolve();
+        }, { once: true });
+
+        freshKeepNew.addEventListener('click', async () => {
+            freshKeepNew.disabled = true;
+            try {
+                await TimetableApi.remove(existingLecture.id);
+                modal.hide();
+                await createLectureOrResolveConflict(newPayload, subjectLabel);
+            } catch (err) {
+                showToast(err.message || 'Could not replace that lecture.');
+            } finally {
+                freshKeepNew.disabled = false;
+                resolve();
+            }
+        }, { once: true });
+
+        modal.show();
+    });
+}
+
+async function refreshTimetable() {
+    try {
+        const lectures = await TimetableApi.list();
+        timetableLectures = lectures.map(l => ({
+            id: l.id,
+            day: l.dayOfWeek,
+            start: l.startTime,
+            end: l.endTime,
+            mainSubject: l.subject ? l.subject.name : 'General',
+            module: l.location || 'Lecture'
+        }));
+    } catch (err) {
+        showToast(err.message || 'Could not load your timetable.');
+        timetableLectures = [];
+    }
+    renderTimetable();
 }
 
 function dayFullName(abbr) {
@@ -1367,28 +2558,51 @@ function minutesToTime(mins) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/* Builds a proper Time-slot × Day grid */
 const SLOT_MINUTES = 30;
 
 function renderTimetable() {
     const table = document.getElementById('timetableTable');
     if (!table) return;
 
-    if (!timetableLectures.length) {
-        table.innerHTML = '<tbody><tr><td class="timetable-empty-cell">No lectures added yet! use the form to build your weekly timetable.</td></tr></tbody>';
-        return;
+    const wrapper = table.closest('.timetable-wrapper') || table.parentElement;
+    let banner = wrapper ? wrapper.querySelector('#timetableEmptyBanner') : null;
+
+    const isEmpty = !timetableLectures.length;
+
+    if (wrapper) {
+        if (isEmpty) {
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'timetableEmptyBanner';
+                banner.className = 'timetable-empty-banner';
+                wrapper.insertBefore(banner, table);
+            }
+            banner.innerHTML = buildEmptyStateHtml({
+                message: 'No lectures added yet',
+                buttonLabel: 'Add Lecture',
+                targetSelector: '#addTimetableCard',
+                focusSelector: '#ttMainSubjectInput'
+            });
+            banner.style.display = '';
+        } else if (banner) {
+            banner.style.display = 'none';
+        }
     }
 
-    let minStart = Math.min(...timetableLectures.map(l => timeToMinutes(l.start)));
-    let maxEnd = Math.max(...timetableLectures.map(l => timeToMinutes(l.end)));
-    // Snap to clean hour boundaries so the grid always starts/ends on the hour.
-    minStart = Math.floor(minStart / 60) * 60;
-    maxEnd = Math.ceil(maxEnd / 60) * 60;
+    const thead = `<thead><tr><th class="tt-time-head">Time</th>${DAY_ORDER.map(d => `<th>${dayFullName(d)}</th>`).join('')}</tr></thead>`;
+
+    let minStart = 8 * 60;
+    let maxEnd = 22 * 60;
+
+    if (!isEmpty) {
+        minStart = Math.min(...timetableLectures.map(l => timeToMinutes(l.start)));
+        maxEnd = Math.max(...timetableLectures.map(l => timeToMinutes(l.end)));
+        minStart = Math.floor(minStart / 60) * 60;
+        maxEnd = Math.ceil(maxEnd / 60) * 60;
+    }
 
     const slotStarts = [];
     for (let t = minStart; t < maxEnd; t += SLOT_MINUTES) slotStarts.push(t);
-
-    const thead = `<thead><tr><th class="tt-time-head">Time</th>${DAY_ORDER.map(d => `<th>${dayFullName(d)}</th>`).join('')}</tr></thead>`;
 
     // Tracks day
     const consumed = new Set();
@@ -1429,6 +2643,239 @@ function renderTimetable() {
     table.innerHTML = thead + `<tbody>${rows}</tbody>`;
 }
 
+/* ==========================================================================
+   Dashboard - Today's Schedule
+   ========================================================================== */
+async function initTodaySchedule() {
+    const list = document.getElementById('todayScheduleList');
+    if (!list) return;
+
+    const todayIso = toLocalIsoDate();
+    const todayAbbr = getTodayDayAbbr();
+
+    let lectures = [];
+    try {
+        lectures = await TimetableApi.list();
+    } catch (err) {
+        showToast(err.message || 'Could not load your timetable.');
+    }
+    const [sessions, tasks, aeItems] = await Promise.all([
+        PlannerApi.listSessions(todayIso, todayIso).catch(() => []),
+        TasksApi.list().catch(() => []),
+        AssignmentsExamsApi.list().catch(() => [])
+    ]);
+
+    const entries = [];
+
+    lectures.filter(l => l.dayOfWeek === todayAbbr).forEach(l => {
+        const subjectName = l.subject ? l.subject.name : 'General';
+        entries.push({
+            sortKey: timeToMinutes(l.startTime),
+            timeLabel: formatTime(l.startTime),
+            title: subjectName,
+            subtitle: `${l.location || 'Lecture'} • ${formatTimeRange(l.startTime, l.endTime)}`,
+            color: getMainSubjectColor(subjectName)
+        });
+    });
+
+    (sessions || []).filter(s => s.dueDate === todayIso).forEach(s => {
+        const subjectName = s.subject ? s.subject.name : 'Study';
+        entries.push({
+            sortKey: s.startTime ? timeToMinutes(s.startTime) : (24 * 60),
+            timeLabel: s.startTime ? formatTime(s.startTime) : 'Today',
+            title: s.title || `${subjectName} Study Session`,
+            subtitle: (s.startTime && s.endTime) ? `Study Session • ${formatTimeRange(s.startTime, s.endTime)}` : 'Study Session',
+            color: getMainSubjectColor(subjectName)
+        });
+    });
+
+    (tasks || []).filter(t => t.dueDate === todayIso && t.status !== 'done').forEach(t => {
+        const subjectName = t.subject ? t.subject.name : 'General';
+        entries.push({
+            sortKey: 24 * 60 + 1,
+            timeLabel: 'Due Today',
+            title: t.title,
+            subtitle: `Task • ${subjectName}`,
+            color: getMainSubjectColor(subjectName)
+        });
+    });
+
+    (aeItems || []).filter(a => a.dueDate === todayIso).forEach(a => {
+        const subjectName = a.subject ? a.subject.name : 'General';
+        const isExam = a.itemType === 'exam';
+        entries.push({
+            sortKey: 24 * 60 + 2,
+            timeLabel: 'Due Today',
+            title: a.title,
+            subtitle: `${isExam ? 'Exam' : 'Assignment'} • ${subjectName}`,
+            color: getMainSubjectColor(subjectName)
+        });
+    });
+
+    if (!entries.length) {
+        list.innerHTML = buildEmptyStateHtml({
+            icon: 'fa-solid fa-calendar-day',
+            message: 'Nothing scheduled for today',
+            buttonLabel: 'Add Lecture',
+            buttonHref: 'attendance.html#addTimetableCard'
+        });
+        return;
+    }
+
+    entries.sort((a, b) => a.sortKey - b.sortKey);
+
+    list.innerHTML = entries.map(e => `
+        <div class="timeline-item">
+            <div class="time">${escapeHtml(e.timeLabel)}</div>
+            <div class="timeline-dot" style="background:${e.color}"></div>
+            <div class="timeline-content">
+                <h5>${escapeHtml(e.title)}</h5>
+                <p>${escapeHtml(e.subtitle)}</p>
+            </div>
+        </div>`).join('');
+}
+
+/* ==========================================================================
+   Subject Progress (dashboard + progress)
+   ========================================================================== */
+async function renderSubjectProgress() {
+    const containers = document.querySelectorAll('#progressCard .subject-list');
+    if (!containers.length) return;
+
+    let subjects, tasks;
+    try {
+        [subjects, tasks] = await Promise.all([SubjectsApi.list(), TasksApi.list()]);
+    } catch (err) {
+        showToast(err.message || 'Could not load subject progress.');
+        return;
+    }
+
+    if (!subjects.length) {
+        const html = buildEmptyStateHtml({
+            message: ' No subjects yet. Add your first subject to begin organizing your semester.',
+            buttonLabel: 'Add Task',
+            buttonHref: 'tasks.html'
+        });
+        containers.forEach(el => el.innerHTML = html);
+        return;
+    }
+
+    const rows = subjects.map(subject => {
+        const subjectTasks = tasks.filter(t => t.subject && t.subject.id === subject.id);
+        const total = subjectTasks.length;
+        const done = subjectTasks.filter(t => t.status === 'done').length;
+        const pct = total ? Math.round((done / total) * 100) : 0; // real zero, never hidden (item 6)
+        const color = getMainSubjectColor(subject.name);
+
+        let pillClass, pillLabel;
+        if (pct >= 85) { pillClass = 'green-pill'; pillLabel = 'Excellent'; }
+        else if (pct >= 65) { pillClass = 'blue-pill'; pillLabel = 'On Track'; }
+        else if (pct >= 45) { pillClass = 'orange-pill'; pillLabel = 'Catch Up'; }
+        else { pillClass = 'red-pill'; pillLabel = 'Needs Attention'; }
+
+        return `
+            <div class="subject-row">
+                <div class="subject-info">
+                    <span class="subject-dot" style="background:${color}"></span>
+                    <span class="subject-name">${escapeHtml(subject.name)}</span>
+                    <span class="subject-pct">${pct}%</span>
+                </div>
+                <div class="subject-bar-track">
+                    <div class="subject-bar-fill" style="width:${pct}%; background:${color}"></div>
+                </div>
+                <div class="subject-meta">
+                    <span class="badge-pill ${pillClass}">${pillLabel}</span>
+                    <span class="subject-tasks">${done}/${total} tasks done</span>
+                </div>
+            </div>`;
+    });
+
+    containers.forEach(el => el.innerHTML = rows.join(''));
+    initProgressAnimations(); // (re)animate the bars just injected
+}
+
+/* ==========================================================================
+   Productivity Streak (dashboard + progress)
+   ========================================================================== */
+const STREAK_MILESTONES = [
+    { days: 7, label: '7 days', name: 'Bronze', medalClass: 'medal-bronze' },
+    { days: 14, label: '14 days', name: 'Silver', medalClass: 'medal-silver' },
+    { days: 30, label: '30 days', name: 'Gold', medalClass: 'medal-gold' }
+];
+
+async function initStreak() {
+    const card = document.getElementById('streakCard');
+    if (!card) return;
+
+    let data;
+    try {
+        data = await ProgressApi.streak();
+    } catch (err) {
+        showToast(err.message || 'Could not load your streak.');
+        data = { currentStreak: 0, last7Days: [] };
+    }
+
+    const streak = data.currentStreak || 0;
+    const days = data.last7Days || [];
+
+    setTextIfPresent('streakCountLabel', `${streak} day${streak === 1 ? '' : 's'}`);
+    setTextIfPresent('streakNumber', streak);
+
+    renderStreakWeek(days);
+    renderStreakMilestones(streak);
+}
+
+function setTextIfPresent(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function renderStreakWeek(days) {
+    const weekEl = document.getElementById('streakWeek');
+    if (!weekEl) return;
+
+    if (!days.length) {
+        weekEl.innerHTML = '<p class="text-muted mb-0">No data to display</p>';
+        return;
+    }
+
+    weekEl.innerHTML = days.map(d => {
+        const classes = ['day-cell'];
+        if (d.active) classes.push('done');
+        else if (d.isToday) classes.push('today-cell');
+        const icon = d.active ? '<i class="bi bi-check-lg"></i>' : (d.isToday ? '<i class="bi bi-clock"></i>' : '');
+        return `<div class="${classes.join(' ')}"><span>${escapeHtml(d.dayLabel)}</span>${icon}</div>`;
+    }).join('');
+}
+
+function renderStreakMilestones(streak) {
+    const milestonesEl = document.getElementById('streakMilestones');
+    const tipEl = document.getElementById('streakTip');
+
+    if (milestonesEl) {
+        const parts = [];
+        STREAK_MILESTONES.forEach((m, i) => {
+            const reached = streak >= m.days;
+            const isNext = !reached && (i === 0 || streak >= STREAK_MILESTONES[i - 1].days);
+            parts.push(`<div class="milestone ${reached ? 'reached' : ''} ${isNext ? 'active-ms' : ''}"><span><i class="fa-solid fa-medal ${m.medalClass}"></i></span><small>${m.label}</small></div>`);
+            if (i < STREAK_MILESTONES.length - 1) {
+                parts.push(`<div class="milestone-line ${reached ? 'reached' : ''}"></div>`);
+            }
+        });
+        milestonesEl.innerHTML = parts.join('');
+    }
+
+    if (tipEl) {
+        const next = STREAK_MILESTONES.find(m => streak < m.days);
+        if (next) {
+            const remaining = next.days - streak;
+            tipEl.innerHTML = `${remaining} more day${remaining === 1 ? '' : 's'} to unlock the ${next.name} Streak badge! <i class="fa-solid fa-medal ${next.medalClass}"></i>`;
+        } else {
+            tipEl.textContent = "You've unlocked every streak badge - amazing work!";
+        }
+    }
+}
+
 function initProgressAnimations() {
     const selectors = '.subject-bar-fill, .progress-bar';
     const bars = document.querySelectorAll(selectors);
@@ -1463,6 +2910,17 @@ function initProgressAnimations() {
    ========================================================================== */
 
 const PLANNER_STATE_KEY = 'levelup-planner-state';
+
+let plannerCanGenerate = true;
+
+async function hasSchedulableDeadlines() {
+    try {
+        const [tasks, aeItems] = await Promise.all([TasksApi.list(), AssignmentsExamsApi.list()]);
+        return tasks.some(t => t.dueDate) || aeItems.some(a => a.dueDate);
+    } catch {
+        return true; /
+    }
+}
 const PLANNER_HOURS_KEY = 'levelup-planner-hours';
 const PLANNER_REST_KEY = 'levelup-planner-rest-on-holidays';
 
@@ -1472,7 +2930,7 @@ function loadRestOnHolidays() {
 function saveRestOnHolidays(value) {
     try { 
         localStorage.setItem(PLANNER_REST_KEY, value ? 'true' : 'false'); 
-    } catch { /* storage unavailable! preference just won't persist across reloads */ }
+    } catch { /* storage unavailable */ }
 }
 const PLANNER_DAY_START_DEFAULT = 7 * 60;  // 07:00, in minutes since midnight
 const PLANNER_DAY_END_DEFAULT = 22 * 60;   // 22:00
@@ -1491,7 +2949,7 @@ function loadPlannerHours() {
 }
 
 function savePlannerHours(startHHMM, endHHMM) {
-    try { localStorage.setItem(PLANNER_HOURS_KEY, JSON.stringify({ start: startHHMM, end: endHHMM })); } catch { /* storage unavailable! preference just won't persist across reloads */ }
+    try { localStorage.setItem(PLANNER_HOURS_KEY, JSON.stringify({ start: startHHMM, end: endHHMM })); } catch { /* storage unavailable! */ }
 }
 const STUDY_HOURS_PER_SUBJECT_PER_WEEK = 2;
 const STUDY_BLOCK_MINUTES = 60;
@@ -1512,18 +2970,9 @@ const PLANNER_TYPE_META = {
     task:       { icon: 'bi-check2-square' }
 };
 
-const PLANNER_SEED_EVENTS = [
-    { id: 'seed-1', title: 'Database ER Diagram', subject: 'Database Systems', type: 'assignment', priority: 'high', day: 'Mon', start: '14:00', end: '15:00' },
-    { id: 'seed-2', title: 'DSA Assignment 3', subject: 'Data Structures & Algorithms', type: 'assignment', priority: 'medium', day: 'Wed', start: '14:00', end: '15:00' },
-    { id: 'seed-3', title: 'OOP Lab Exercise 4', subject: 'Object Oriented Programming', type: 'assignment', priority: 'low', day: 'Thu', start: '14:00', end: '15:00' },
-    { id: 'seed-4', title: 'Revise OOP Inheritance Notes', subject: 'Object Oriented Programming', type: 'task', priority: 'medium', day: 'Tue', start: '16:00', end: '17:00' },
-    { id: 'seed-5', title: 'Organize Rotaract Event Notes', subject: 'General', type: 'task', priority: 'low', day: 'Sat', start: '13:00', end: '14:00' },
-    { id: 'seed-6', title: 'Statistics Quiz', subject: 'Inferential Statistics', type: 'exam', priority: 'high', day: 'Sat', start: '10:00', end: '11:00' },
-    { id: 'seed-7', title: 'Linear Algebra Midterm', subject: 'Linear Algebra', type: 'exam', priority: 'high', day: 'Sat', start: '10:00', end: '11:00' },
-    { id: 'seed-8', title: 'DSA Final', subject: 'Data Structures & Algorithms', type: 'exam', priority: 'high', day: 'Thu', start: '14:00', end: '16:00' }
-];
+async function initStudyPlanner() {
+    await refreshTimetable(); 
 
-function initStudyPlanner() {
     const currentMonday = getMondayISO(new Date());
 
     const savedHours = loadPlannerHours();
@@ -1534,28 +2983,33 @@ function initStudyPlanner() {
 
     let state = loadPlannerState();
     let restOnHolidays = loadRestOnHolidays();
+    plannerCanGenerate = await hasSchedulableDeadlines();
+
+    function freshState(carryArgs) {
+        return plannerCanGenerate
+            ? generateWeekSchedule({ ...carryArgs, restOnHolidays })
+            : { fixedItems: [], studySessions: [], conflicts: [], shiftNotes: [], unscheduled: [] };
+    }
 
     try {
         if (!state) {
-            state = { weekStart: currentMonday, ...generateWeekSchedule({ includeSeed: true, restOnHolidays }) };
+            state = { weekStart: currentMonday, ...freshState() };
             savePlannerState(state);
         } else if (state.weekStart !== currentMonday) {
-            const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
-            state = { weekStart: currentMonday, ...generateWeekSchedule({ carryStudyMinutes, carryMovable, carryUserMoved, restOnHolidays }) };
+            const carryArgs = buildCarryOver(state);
+            state = { weekStart: currentMonday, ...freshState(carryArgs) };
             savePlannerState(state);
-            showToast('New week: your planner was regenerated and any missed sessions carried forward.', 'success', 5200);
+            if (plannerCanGenerate) {
+                showToast('New week: your planner was regenerated and any missed sessions carried forward.', 'success', 5200);
+            }
         }
 
         renderPlannerLegend();
         renderPlanner(state);
     } catch (err) {
-        // Cached planner data from an earlier version of the app (or a corrupted
-        // save) can't be trusted - wipe it and rebuild a fresh week rather than
-        // leaving the page stuck with a half-wired planner (buttons that were
-        // never attached because we threw before reaching them below).
         console.error('Study Planner: cached state was invalid, rebuilding a fresh week.', err);
         try { localStorage.removeItem(PLANNER_STATE_KEY); } catch { /* storage unavailable */ }
-        state = { weekStart: currentMonday, ...generateWeekSchedule({ includeSeed: true, restOnHolidays }) };
+        state = { weekStart: currentMonday, ...freshState() };
         savePlannerState(state);
         renderPlannerLegend();
         renderPlanner(state);
@@ -1566,6 +3020,10 @@ function initStudyPlanner() {
     const regenerateModalEl = document.getElementById('regenerateWeekModal');
 
     function runRegenerate(wantsMoreRest) {
+        if (!plannerCanGenerate) {
+            showToast('Add at least one task, assignment, or exam with a due date before generating your study plan.');
+            return;
+        }
         restOnHolidays = wantsMoreRest;
         saveRestOnHolidays(restOnHolidays);
         const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
@@ -1577,6 +3035,10 @@ function initStudyPlanner() {
 
     if (regenBtn) {
         regenBtn.addEventListener('click', () => {
+            if (!plannerCanGenerate) {
+                showToast('Add at least one task, assignment, or exam with a due date before generating your study plan.');
+                return;
+            }
             if (regenerateModalEl && typeof bootstrap !== 'undefined') {
                 bootstrap.Modal.getOrCreateInstance(regenerateModalEl).show();
             } else {
@@ -1632,8 +3094,6 @@ function initStudyPlanner() {
     const grid = document.getElementById('plannerTable');
     if (grid) {
         grid.addEventListener('click', (e) => {
-            // Only study/exam-prep sessions the app generated can be moved 
-            // lectures are locked out entirely, and other item types don't
             const moveBtn = e.target.closest('.planner-move-btn');
             if (moveBtn) {
                 e.stopPropagation();
@@ -1652,10 +3112,6 @@ function initStudyPlanner() {
         });
     }
 
-    /* Banner actions for a user-added session that overlaps something:
-       "Keep it as is" just dismisses the notice (the session stays right
-       where the student put it); "Change time" opens the same move modal
-       used elsewhere, pre-filtered to actually-free slots. */
     const bannerEl = document.getElementById('plannerBanner');
     if (bannerEl) {
         bannerEl.addEventListener('click', (e) => {
@@ -1676,9 +3132,6 @@ function initStudyPlanner() {
         });
     }
 
-    /* ---- Move-session modal: reschedule a single generated study/exam-prep
-       block to another free day+time. Lectures never appear here, this
-       modal only ever opens for state.studySessions entries. ---- */
     function buildBusyByDayExcluding(excludeId) {
         const busyByDay = {};
         DAY_ORDER.forEach(d => busyByDay[d] = []);
@@ -1774,10 +3227,9 @@ function getMondayISO(d) {
     const diff = (day === 0 ? -6 : 1) - day;
     date.setDate(date.getDate() + diff);
     date.setHours(0, 0, 0, 0);
-    return date.toISOString().slice(0, 10);
+    return toLocalIsoDate(date);
 }
 
-/* Carries forward anything not marked done */
 function buildCarryOver(prevState) {
     const carryStudyMinutes = {};
     const carryUserMoved = [];
@@ -1832,8 +3284,6 @@ function rotateDays(startDay) {
     return [...DAY_ORDER.slice(idx), ...DAY_ORDER.slice(0, idx)];
 }
 
-/* Every day from Monday up to (and including) the given day, used to keep
-   exam-prep sessions landing BEFORE the exam instead of after it. */
 function daysUpTo(day) {
     const idx = DAY_ORDER.indexOf(day);
     return idx === -1 ? [...DAY_ORDER] : DAY_ORDER.slice(0, idx + 1);
@@ -1854,23 +3304,6 @@ function findFreeSlot(day, duration, busyByDay) {
     return null;
 }
 
-/* Places an exam exactly where it's set, exams aren't moved. Any overlap
-   it runs into (another exam, a lecture) is reported as a conflict for
-   the person to resolve manually, since neither side can be safely
-   auto-shifted for them. */
-function placeExam(item, busyByDay, conflicts) {
-    const s = timeToMinutes(item.start), en = timeToMinutes(item.end);
-    const clashes = busyByDay[item.day].filter(b => s < b.end && b.start < en);
-    clashes.forEach(c => {
-        conflicts.push(`"${item.title}" clashes with "${c.label}" on ${dayFullName(item.day)}, ${formatTimeRange(item.start, item.end)}! please move one of these manually.`);
-    });
-    addBusy(busyByDay, item.day, s, en, `${item.title} (exam)`);
-    return { day: item.day, start: item.start, end: item.end };
-}
-
-/* Places a task/assignment. Tries its own preferred day+time first (if it
-   has one); if that's taken, auto-shifts to the next free slot same
-   day first, then later days and reports the shift. */
 function placeMovableItem(item, busyByDay) {
     const duration = item.duration != null ? item.duration : (timeToMinutes(item.end) - timeToMinutes(item.start));
     let placement = null;
@@ -1894,11 +3327,6 @@ function placeMovableItem(item, busyByDay) {
     return { placement, wasShifted, duration };
 }
 
-/* Places one generated study/exam-prep block. Tries the given day pool in
-   order (already sorted by whoever's least loaded so sessions spread out
-   instead of stacking), respecting a per-day minute cap so the student
-   isn't overworked. Falls back to ignoring the cap (any free slot, any
-   day) only if that's the sole way to fit the requested time in. */
 function placeStudySessionSpaced(dayPool, duration, busyByDay, dailyStudyMinutes, dayCap) {
     for (const day of dayPool) {
         if ((dailyStudyMinutes[day] || 0) + duration > dayCap) continue;
@@ -1912,7 +3340,7 @@ function placeStudySessionSpaced(dayPool, duration, busyByDay, dailyStudyMinutes
     return { placement: null, wasShifted: true };
 }
 
-function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carryUserMoved = [], includeSeed = false, restOnHolidays = false } = {}) {
+function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carryUserMoved = [], restOnHolidays = false } = {}) {
     const busyByDay = {};
     DAY_ORDER.forEach(d => busyByDay[d] = []);
     timetableLectures.forEach(l => addBusy(busyByDay, l.day, timeToMinutes(l.start), timeToMinutes(l.end), `${l.mainSubject} ${l.module}`));
@@ -1923,14 +3351,7 @@ function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carry
     const fixedItems = [];
     let nextId = 1;
 
-    const seedSource = includeSeed ? PLANNER_SEED_EVENTS.map(e => ({ ...e })) : [];
-    const exams = seedSource.filter(e => e.type === 'exam');
-    const movableAll = [...seedSource.filter(e => e.type !== 'exam'), ...carryMovable];
-
-    exams.forEach(e => {
-        const placement = placeExam(e, busyByDay, conflicts);
-        fixedItems.push({ id: `F${nextId++}`, title: e.title, subject: e.subject, type: e.type, priority: e.priority, done: false, ...placement });
-    });
+    const movableAll = [...carryMovable];
 
     movableAll.forEach(item => {
         const { placement, wasShifted, duration } = placeMovableItem(item, busyByDay);
@@ -1949,24 +3370,13 @@ function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carry
     });
 
     const examDayBySubject = {};
-    exams.forEach(e => {
-        const existing = examDayBySubject[e.subject];
-        if (!existing || DAY_ORDER.indexOf(e.day) < DAY_ORDER.indexOf(existing)) examDayBySubject[e.subject] = e.day;
-    });
 
     const studySessions = [];
     let studyId = 1;
-    const dailyStudyMinutes = {}; // generated-study minutes only, used to keep any single day from being overloaded
-    const reservedMinutesBySubject = {}; // minutes already covered by sessions the student manually moved
+    const dailyStudyMinutes = {}; 
+    const reservedMinutesBySubject = {}; 
 
     carryUserMoved.forEach(m => {
-        const s = timeToMinutes(m.start), en = timeToMinutes(m.end);
-        // A user-placed session's own time is respected even if something
-        // else now lands on it (e.g. carried forward across weeks and a
-        // new lecture/task claimed that slot) - it's kept right where the
-        // student put it, and the specific overlap is surfaced so they can
-        // decide whether to leave it or move it, rather than silently
-        // auto-relocating something they chose themselves.
         const clashes = busyByDay[m.day].filter(b => s < b.end && b.start < en);
 
         addBusy(busyByDay, m.day, s, en, `${m.subject} Study Session`);
@@ -2073,9 +3483,6 @@ function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carry
         if (added && wasEmptyBefore) shiftNotes.push(`${dayFullName(day)} was completely free, so its whole study window was filled with review sessions.`);
     });
 
-    /* Collapse repeat failures (e.g. 10x "DSA study session, week's full")
-       into one line with a count instead of listing the same reason over
-       and over. */
     const unscheduledGroups = new Map();
     unscheduledRaw.forEach(u => {
         const g = unscheduledGroups.get(u.key) || { ...u, count: 0 };
@@ -2121,6 +3528,15 @@ function renderPlannerBanner(state) {
     const unscheduled = state.unscheduled || [];
     const userOverlaps = (state.studySessions || []).filter(s => s.userMoved && s.hasOverlap);
 
+    if (!plannerCanGenerate && !conflicts.length && !shifts.length && !unscheduled.length && !userOverlaps.length) {
+        wrap.innerHTML = `<div class="planner-banner-group planner-banner-shift">
+            <h6><i class="bi bi-info-circle-fill"></i> Nothing to generate yet</h6>
+            <ul><li>Add at least one task, assignment, or exam with a due date before generating your study plan.
+                <div class="planner-banner-actions"><a href="tasks.html" class="btn btn-sm btn-outline-primary">Go to Tasks</a></div>
+            </li></ul>
+        </div>`;
+        return;
+    }
     if (!conflicts.length && !shifts.length && !unscheduled.length && !userOverlaps.length) {
         wrap.innerHTML = '';
         return;
@@ -2172,8 +3588,13 @@ function renderPlannerGrid(state) {
     }));
     const merged = [...exams, ...lectures, ...others, ...state.studySessions];
 
+    const thead = `<thead><tr><th class="tt-time-head">Time</th>${DAY_ORDER.map(d => `<th>${dayFullName(d)}</th>`).join('')}</tr></thead>`;
+
     if (!merged.length) {
-        table.innerHTML = '<tbody><tr><td class="timetable-empty-cell">Nothing scheduled yet! add lectures to your Timetable first.</td></tr></tbody>';
+        const emptyHtml = buildEmptyStateHtml({
+            message: ' Ready to focus? Create your first study plan.'
+        });
+        table.innerHTML = thead + `<tbody><tr><td colspan="${DAY_ORDER.length + 1}" class="empty-state-cell">${emptyHtml}</td></tr></tbody>`;
         return;
     }
 
@@ -2185,7 +3606,6 @@ function renderPlannerGrid(state) {
     const slotStarts = [];
     for (let t = minStart; t < maxEnd; t += SLOT_MINUTES) slotStarts.push(t);
 
-    const thead = `<thead><tr><th class="tt-time-head">Time</th>${DAY_ORDER.map(d => `<th>${dayFullName(d)}</th>`).join('')}</tr></thead>`;
     const consumed = new Set();
 
     const rows = slotStarts.map(slotStart => {
@@ -2269,17 +3689,13 @@ function renderPlannerSummary(state) {
 
 let progressCharts = {};
 
-function initProgressCharts() {
+async function initProgressCharts() {
     if (typeof Chart === 'undefined') return; // CDN blocked/offline, page still works without charts
 
     Chart.defaults.font.family = "'Poppins', sans-serif";
 
-    renderAttendanceChart();
-    renderProductivityChart();
-    renderStudyHoursChart();
+    await Promise.all([renderAttendanceChart(), renderProductivityChart(), renderStudyHoursChart()]);
 
-    // Charts are drawn once with baked-in colors, so redraw on theme flips
-    // rather than trying to live-patch every color inside each chart.
     const observer = new MutationObserver(() => {
         Object.values(progressCharts).forEach(c => c && c.destroy());
         renderAttendanceChart();
@@ -2289,8 +3705,6 @@ function initProgressCharts() {
     observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
 }
 
-/* Pulls live theme colors so charts match light/dark mode instead of
-   hard-coding a palette that only looks right in one of them. */
 function chartThemeColors() {
     const styles = getComputedStyle(document.body);
     return {
@@ -2299,29 +3713,32 @@ function chartThemeColors() {
     };
 }
 
-/*  Attendance - present/absent rate per subject, from the same demo lecture records seeded on the Attendance page. */
-function renderAttendanceChart() {
+/*  Attendance - present/absent rate per subject, from real records in the database. */
+async function renderAttendanceChart() {
     const ctx = document.getElementById('attendanceChart');
     if (!ctx) return;
     const { text, grid } = chartThemeColors();
 
-    const subjects = Object.keys(ATTENDANCE_SUBJECT_COLORS);
-    // Mirrors the seed rows in attendance.html's log table.
-    const attendanceRate = {
-        'Object Oriented Programming': 80,
-        'Data Structures & Algorithms': 100,
-        'Database Systems': 75,
-        'Inferential Statistics': 50,
-        'Linear Algebra': 50
-    };
+    let rows = [];
+    try {
+        const summary = await AttendanceApi.summary();
+        rows = summary.subjects || [];
+    } catch (err) {
+        showToast(err.message || 'Could not load attendance data for the chart.');
+    }
 
+    const labels = rows.map(r => r.subjectName.length > 18 ? r.subjectName.replace(' & ', ' &\n') : r.subjectName);
+    const colors = rows.map(r => r.colorHex || '#10b981');
+    const values = rows.map(r => r.percentage);
+
+    if (progressCharts.attendance) progressCharts.attendance.destroy();
     progressCharts.attendance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: subjects.map(s => s.length > 18 ? s.replace(' & ', ' &\n') : s),
+            labels,
             datasets: [{
-                data: subjects.map(s => attendanceRate[s] ?? 0),
-                backgroundColor: subjects.map(s => ATTENDANCE_SUBJECT_COLORS[s]),
+                data: values,
+                backgroundColor: colors,
                 borderRadius: 8,
                 maxBarThickness: 26
             }]
@@ -2342,26 +3759,44 @@ function renderAttendanceChart() {
     });
 }
 
-/*  Weekly Productivity - mirrors the streak card's Mon–Sun status
-   (done / today / upcoming) as a completed-tasks-per-day view.  */
-function renderProductivityChart() {
+/*  Weekly Productivity */
+async function renderProductivityChart() {
     const ctx = document.getElementById('productivityChart');
     if (!ctx) return;
     const { text, grid } = chartThemeColors();
 
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    // Same shape as the streak-week cells above: Mon–Thu complete, Fri is
-    // today (in progress), Sat/Sun haven't happened yet.
-    const tasksDone = [5, 6, 4, 7, 3, 0, 0];
-    const todayIndex = 4;
+    const today = new Date();
+    const todayIndex = (today.getDay() + 6) % 7; // convert Sun=0..Sat=6 to Mon=0..Sun=6
 
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - todayIndex);
+    const weekDates = days.map((_, i) => {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        return toLocalIsoDate(d);
+    });
+
+    const tasksDone = [0, 0, 0, 0, 0, 0, 0];
+    try {
+        const tasks = await TasksApi.list('done');
+        tasks.forEach(t => {
+            if (!t.dueDate) return;
+            const idx = weekDates.indexOf(t.dueDate);
+            if (idx !== -1) tasksDone[idx]++;
+        });
+    } catch (err) {
+        showToast(err.message || 'Could not load task data for the chart.');
+    }
+
+    if (progressCharts.productivity) progressCharts.productivity.destroy();
     progressCharts.productivity = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: days,
             datasets: [{
                 data: tasksDone,
-                backgroundColor: days.map((_, i) => i === todayIndex ? '#f59e0b' : (i > todayIndex ? grid : '#6d5dfc')),
+                backgroundColor: days.map((_, i) => i === todayIndex ? '#f59e0b' : (i > todayIndex ? grid : '#10b981')),
                 borderRadius: 8,
                 maxBarThickness: 34
             }]
@@ -2381,46 +3816,52 @@ function renderProductivityChart() {
     });
 }
 
-/* ---- Study Hours - reads this week's real study sessions out of the
-   Study Planner's saved state, so it reflects whatever the student has
-   actually generated/edited there. Falls back to sample data if the
-   planner hasn't been used yet. ---- */
-function renderStudyHoursChart() {
+/* ---- Study Hours. ---- */
+async function renderStudyHoursChart() {
     const ctx = document.getElementById('studyHoursChart');
     if (!ctx) return;
     const { text, grid } = chartThemeColors();
     const subEl = document.getElementById('studyHoursSub');
 
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    let hoursByDay = null;
+    const today = new Date();
+    const todayIndex = (today.getDay() + 6) % 7;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - todayIndex);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const isoMonday = toLocalIsoDate(monday);
+    const isoSunday = toLocalIsoDate(sunday);
 
+    const hoursByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+    let hasData = false;
     try {
-        const raw = localStorage.getItem(PLANNER_STATE_KEY);
-        if (raw) {
-            const state = JSON.parse(raw);
-            if (state && Array.isArray(state.studySessions) && state.studySessions.length) {
-                hoursByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
-                state.studySessions.forEach(s => {
-                    const mins = timeToMinutes(s.end) - timeToMinutes(s.start);
-                    if (hoursByDay[s.day] != null && mins > 0) hoursByDay[s.day] += mins / 60;
-                });
-            }
+        const sessions = await PlannerApi.listSessions(isoMonday, isoSunday);
+        if (sessions && sessions.length) {
+            hasData = true;
+            sessions.forEach(s => {
+                const mins = timeToMinutes(s.endTime) - timeToMinutes(s.startTime);
+                const dayIdx = (new Date(s.date + 'T00:00:00').getDay() + 6) % 7;
+                const dayKey = days[dayIdx];
+                if (mins > 0) hoursByDay[dayKey] += mins / 60;
+            });
         }
-    } catch { /* corrupted/unavailable planner state - fall back to sample data below */ }
+    } catch (err) {
 
-    const usingRealData = !!hoursByDay;
-    if (!hoursByDay) hoursByDay = { Mon: 1.5, Tue: 2, Wed: 1, Thu: 2.5, Fri: 1.5, Sat: 3, Sun: 2 };
-    if (subEl) subEl.textContent = usingRealData ? 'From your Study Planner' : 'Sample - build a Study Planner for real data';
+    }
 
+    if (subEl) subEl.textContent = hasData ? 'From your Study Planner' : 'No data to display';
+
+    if (progressCharts.studyHours) progressCharts.studyHours.destroy();
     progressCharts.studyHours = new Chart(ctx, {
         type: 'line',
         data: {
             labels: days,
             datasets: [{
                 data: days.map(d => Math.round(hoursByDay[d] * 10) / 10),
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.15)',
-                pointBackgroundColor: '#2563eb',
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                pointBackgroundColor: '#10b981',
                 pointRadius: 4,
                 tension: 0.35,
                 fill: true
@@ -2440,207 +3881,3 @@ function renderStudyHoursChart() {
         }
     });
 }
-
-/* ==========================================================================
-   Settings - account details (name / email / faculty / semester / avatar)
-   ========================================================================== */
-
-const PROFILE_NAME_KEY = 'levelup-profile-name';
-const PROFILE_FACULTY_KEY = 'levelup-profile-faculty';
-const PROFILE_EMAIL_KEY = 'levelup-profile-email';
-const PROFILE_SEMESTER_KEY = 'levelup-profile-semester';
-const PROFILE_AVATAR_KEY = 'levelup-profile-avatar';
-const DEFAULT_PROFILE_NAME = 'Sunil';
-const DEFAULT_PROFILE_FACULTY = 'Computer Science';
-const DEFAULT_PROFILE_SEMESTER = 'Semester 3';
-
-/* Swaps the dashboard's greeting based on the visitor's current local time. */
-function applyTimeBasedGreeting() {
-    const greetingTitle = document.getElementById('greetingTitle');
-    if (!greetingTitle) return;
-
-    const text = greetingTitle.textContent;
-    const match = text.match(/^Good (Morning|Afternoon|Evening)/);
-    if (!match) return;
-
-    const hour = new Date().getHours();
-    let timeGreeting = 'Good Evening';
-    if (hour < 12) timeGreeting = 'Good Morning';
-    else if (hour < 17) timeGreeting = 'Good Afternoon';
-
-    greetingTitle.textContent = text.replace(match[0], timeGreeting);
-}
-
-/* Applies the saved name/faculty/avatar to every navbar profile chip on every page. */
-function applyProfileSettings() {
-    const savedName = localStorage.getItem(PROFILE_NAME_KEY);
-    const savedFaculty = localStorage.getItem(PROFILE_FACULTY_KEY);
-    const savedAvatar = localStorage.getItem(PROFILE_AVATAR_KEY);
-
-    if (savedName) {
-        document.querySelectorAll('.profile h6').forEach(el => el.textContent = savedName);
-
-        const greetingTitle = document.getElementById('greetingTitle');
-        if (greetingTitle && greetingTitle.textContent.includes(DEFAULT_PROFILE_NAME)) {
-            greetingTitle.textContent = greetingTitle.textContent.replace(DEFAULT_PROFILE_NAME, savedName);
-        }
-    }
-
-    if (savedFaculty) {
-        document.querySelectorAll('.profile small').forEach(el => el.textContent = savedFaculty);
-    }
-
-    if (savedAvatar) {
-        document.querySelectorAll('.profile img').forEach(el => el.src = savedAvatar);
-        const settingsAvatar = document.getElementById('settingsProfileAvatar');
-        if (settingsAvatar) settingsAvatar.src = savedAvatar;
-    }
-}
-
-function initSettingsPage() {
-    const nameInput = document.getElementById('profileNameInput');
-    const facultyInput = document.getElementById('profileFacultyInput');
-    const emailInput = document.getElementById('profileEmailInput');
-    const semesterInput = document.getElementById('profileSemesterInput');
-    const newPasswordInput = document.getElementById('newPasswordInput');
-    const confirmPasswordInput = document.getElementById('confirmPasswordInput');
-    const saveBtn = document.getElementById('saveProfileBtn');
-    if (!nameInput || !facultyInput || !saveBtn) return;
-
-    nameInput.value = localStorage.getItem(PROFILE_NAME_KEY) || DEFAULT_PROFILE_NAME;
-    facultyInput.value = localStorage.getItem(PROFILE_FACULTY_KEY) || DEFAULT_PROFILE_FACULTY;
-    if (emailInput) emailInput.value = localStorage.getItem(PROFILE_EMAIL_KEY) || '';
-    if (semesterInput) semesterInput.value = localStorage.getItem(PROFILE_SEMESTER_KEY) || DEFAULT_PROFILE_SEMESTER;
-
-    saveBtn.addEventListener('click', () => {
-        const name = nameInput.value.trim();
-        const faculty = facultyInput.value.trim();
-        const email = emailInput ? emailInput.value.trim() : '';
-        const semester = semesterInput ? semesterInput.value.trim() : '';
-        const newPassword = newPasswordInput ? newPasswordInput.value : '';
-        const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
-
-        if (!name) {
-            showToast('Enter your name before saving.');
-            return;
-        }
-        if (email && !/^\S+@\S+\.\S+$/.test(email)) {
-            showToast('Enter a valid email address.');
-            return;
-        }
-
-        const wantsPasswordChange = newPassword.length > 0 || confirmPassword.length > 0;
-        if (wantsPasswordChange) {
-            if (newPassword.length < 8) {
-                showToast('New password must be at least 8 characters.');
-                return;
-            }
-            if (newPassword !== confirmPassword) {
-                showToast('Passwords do not match.');
-                return;
-            }
-        }
-
-        localStorage.setItem(PROFILE_NAME_KEY, name);
-        localStorage.setItem(PROFILE_FACULTY_KEY, faculty || DEFAULT_PROFILE_FACULTY);
-        if (emailInput) localStorage.setItem(PROFILE_EMAIL_KEY, email);
-        if (semesterInput) localStorage.setItem(PROFILE_SEMESTER_KEY, semester || DEFAULT_PROFILE_SEMESTER);
-
-        applyProfileSettings();
-
-        const previewName = document.getElementById('settingsProfileName');
-        const previewFaculty = document.getElementById('settingsProfileFaculty');
-        if (previewName) previewName.textContent = name;
-        if (previewFaculty) previewFaculty.textContent = faculty || DEFAULT_PROFILE_FACULTY;
-
-        if (wantsPasswordChange) {
-            if (newPasswordInput) newPasswordInput.value = '';
-            if (confirmPasswordInput) confirmPasswordInput.value = '';
-            showToast('Account updated! password changed.', 'success');
-        } else {
-            showToast('Account updated.', 'success');
-        }
-    });
-
-    initAvatarUpload();
-}
-
-/* Profile photo */
-function initAvatarUpload() {
-    const editBtn = document.getElementById('avatarEditBtn');
-    const fileInput = document.getElementById('avatarFileInput');
-    if (!editBtn || !fileInput) return;
-
-    editBtn.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', () => {
-        const file = fileInput.files && fileInput.files[0];
-        if (!file) return;
-
-        resizeImageToDataUrl(file, 200, (dataUrl) => {
-            if (!dataUrl) {
-                showToast('Could not read that image! try a different file.');
-                return;
-            }
-            try {
-                localStorage.setItem(PROFILE_AVATAR_KEY, dataUrl);
-            } catch (err) {
-                showToast('That image is too large to save.');
-                return;
-            }
-            applyProfileSettings();
-            showToast('Profile photo updated.', 'success');
-        });
-
-        fileInput.value = '';
-    });
-}
-
-function resizeImageToDataUrl(file, maxDim, callback) {
-    const reader = new FileReader();
-    reader.onerror = () => callback(null);
-    reader.onload = () => {
-        const img = new Image();
-        img.onerror = () => callback(null);
-        img.onload = () => {
-            const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(img.width * scale);
-            canvas.height = Math.round(img.height * scale);
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            callback(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-}
-
-/* ==========================================================================
-   Settings : notifications on/off
-   ========================================================================== */
-
-const NOTIFICATIONS_ENABLED_KEY = 'levelup-notifications-enabled';
-
-function notificationsEnabled() {
-    return localStorage.getItem(NOTIFICATIONS_ENABLED_KEY) !== 'false'; // enabled by default
-}
-
-function applyNotificationVisibility() {
-    const notifWrap = document.getElementById('notifWrap');
-    if (notifWrap) notifWrap.style.display = notificationsEnabled() ? '' : 'none';
-}
-
-function initNotificationsToggle() {
-    const toggle = document.getElementById('notificationsToggle');
-    if (!toggle) return;
-
-    toggle.checked = notificationsEnabled();
-
-    toggle.addEventListener('change', () => {
-        localStorage.setItem(NOTIFICATIONS_ENABLED_KEY, toggle.checked ? 'true' : 'false');
-        applyNotificationVisibility();
-        showToast(toggle.checked ? 'Notifications turned on.' : 'Notifications turned off.', 'success');
-    });
-}
-
