@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('notificationsToggle')) initNotificationsToggle();
     if (document.getElementById('attendanceChart')) initProgressCharts();
     initPageSearch();
+	if (window.location.hash) {
+        	const hashTarget = document.getElementById(window.location.hash.slice(1));
+        	if (hashTarget) hashTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 });
 
 /* ==========================================================================
@@ -3456,22 +3460,24 @@ function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carry
     const dailyStudyMinutes = {}; 
     const reservedMinutesBySubject = {}; 
 
-    carryUserMoved.forEach(m => {
-        const clashes = busyByDay[m.day].filter(b => s < b.end && b.start < en);
+carryUserMoved.forEach(m => {
+    const s = timeToMinutes(m.start);
+    const en = timeToMinutes(m.end);
+    const clashes = busyByDay[m.day].filter(b => s < b.end && b.start < en);
 
-        addBusy(busyByDay, m.day, s, en, `${m.subject} Study Session`);
-        addBusy(busyByDay, m.day, en, en + STUDY_SESSION_GAP_MINUTES, `${m.subject} study break`);
-        dailyStudyMinutes[m.day] = (dailyStudyMinutes[m.day] || 0) + (en - s);
-        reservedMinutesBySubject[m.subject] = (reservedMinutesBySubject[m.subject] || 0) + (en - s);
+    addBusy(busyByDay, m.day, s, en, `${m.subject} Study Session`);
+    addBusy(busyByDay, m.day, en, en + STUDY_SESSION_GAP_MINUTES, `${m.subject} study break`);
+    dailyStudyMinutes[m.day] = (dailyStudyMinutes[m.day] || 0) + (en - s);
+    reservedMinutesBySubject[m.subject] = (reservedMinutesBySubject[m.subject] || 0) + (en - s);
 
-        studySessions.push({
-            id: `S${studyId++}`, subject: m.subject, type: 'study', title: m.title,
-            priority: m.examPrep ? 'high' : null, done: false, examPrep: !!m.examPrep, userMoved: true,
-            day: m.day, start: m.start, end: m.end,
-            hasOverlap: clashes.length > 0,
-            overlapWith: clashes.map(c => c.label)
-        });
+    studySessions.push({
+        id: `S${studyId++}`, subject: m.subject, type: 'study', title: m.title,
+        priority: m.examPrep ? 'high' : null, done: false, examPrep: !!m.examPrep, userMoved: true,
+        day: m.day, start: m.start, end: m.end,
+        hasOverlap: clashes.length > 0,
+        overlapWith: clashes.map(c => c.label)
     });
+});
 
     getStudySubjects().forEach(subject => {
         const examDay = examDayBySubject[subject];
