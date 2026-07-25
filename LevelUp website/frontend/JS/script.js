@@ -2678,7 +2678,7 @@ async function initTodaySchedule() {
         });
     });
 
-    (sessions || []).filter(s => s.dueDate === todayIso).forEach(s => {
+    (sessions || []).filter(s => s.dueDate === todayIso && !s.completed).forEach(s => {
         const subjectName = s.subject ? s.subject.name : 'Study';
         entries.push({
             sortKey: s.startTime ? timeToMinutes(s.startTime) : (24 * 60),

@@ -44,6 +44,13 @@ public class StudySession extends AcademicItem {
         return "exam_prep".equals(sessionType) ? "#f97316" : "#7c3aed";
     }
 
+    // Polymorphism
+    @Override
+    public boolean isDueSoon() {
+        if (completed) return false;
+        return super.isDueSoon();
+    }
+
     @Override
     public String getNotificationMessage() {
         if (completed) return "Study session \"" + title + "\" already completed.";
