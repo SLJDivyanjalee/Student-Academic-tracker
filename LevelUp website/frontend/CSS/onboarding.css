@@ -1,0 +1,306 @@
+
+.onboarding-backdrop {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 20% 20%, rgba(16, 185, 129, .10), transparent 55%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, .08), transparent 55%),
+                var(--bg-app);
+}
+
+.onboarding-backdrop-inner {
+    text-align: center;
+    opacity: .9;
+}
+
+.onboarding-backdrop-logo {
+    height: 90px;
+    margin-bottom: 14px;
+}
+
+.onboarding-backdrop-tag {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Blur just the page content behind the wizard - applied via JS once the
+   modal has fully opened, scoped to this page only. */
+.onboarding-blur-backdrop {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    background-color: rgba(15, 23, 42, .35) !important;
+}
+
+
+.onboarding-modal-dialog {
+    max-width: 460px;
+}
+
+.onboarding-modal-content {
+    border: none;
+    border-radius: 24px;
+    overflow: hidden;
+    animation: onboardingFadeIn .35s ease;
+}
+
+@keyframes onboardingFadeIn {
+    from { opacity: 0; transform: translateY(10px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.onboarding-step-header {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.onboarding-step-body {
+    padding: 8px 32px 20px;
+}
+
+.onboarding-step-footer {
+    border-top: none;
+    padding: 0 32px 28px;
+}
+
+.onboarding-steps {
+    position: relative;
+}
+
+.onboarding-step {
+    display: none;
+    animation: onboardingStepIn .35s ease;
+}
+
+.onboarding-step.active {
+    display: block;
+}
+
+@keyframes onboardingStepIn {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.onboarding-emoji {
+    font-size: 52px;
+    line-height: 1;
+    margin: 28px 0 10px;
+}
+
+.onboarding-checkmark {
+    animation: onboardingPop .5s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@keyframes onboardingPop {
+    0%   { transform: scale(0); opacity: 0; }
+    60%  { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+.onboarding-step-body h3 {
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 6px;
+}
+
+.onboarding-subtitle {
+    color: var(--accent-dark);
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.onboarding-desc {
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+
+.onboarding-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 24px;
+}
+
+.onboarding-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-soft);
+    transition: all .3s ease;
+}
+
+.onboarding-dot.active {
+    width: 22px;
+    border-radius: 5px;
+    background: var(--accent);
+}
+
+.onboarding-dot.done {
+    background: var(--accent-dark);
+}
+
+
+.onboarding-range-value {
+    float: right;
+    font-weight: 600;
+    color: var(--accent-dark);
+}
+
+.form-range::-webkit-slider-thumb {
+    background: var(--accent);
+}
+
+.form-range::-moz-range-thumb {
+    background: var(--accent);
+}
+
+.onboarding-error {
+    display: none;
+    background: rgba(239, 68, 68, .1);
+    color: #dc2626;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 14px;
+}
+
+.onboarding-error.show {
+    display: block;
+}
+
+/*  Dashboard: "Getting Started" checklist card */
+.getting-started-card {
+    position: relative;
+    animation: onboardingFadeIn .4s ease;
+}
+
+.getting-started-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.getting-started-header h4 {
+    margin: 0;
+}
+
+.getting-started-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.getting-started-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: all .2s ease;
+}
+
+.getting-started-dismiss:hover {
+    background: var(--bg-soft);
+    color: var(--text-main);
+}
+
+.getting-started-progress {
+    height: 8px;
+    border-radius: 6px;
+    background: var(--border-soft);
+    overflow: hidden;
+    margin-bottom: 18px;
+}
+
+.getting-started-progress-bar {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-dark));
+    width: 0%;
+    transition: width .6s ease;
+}
+
+.getting-started-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.getting-started-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--bg-soft);
+    transition: all .2s ease;
+}
+
+.getting-started-item .gs-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+    font-size: 12px;
+    transition: all .25s ease;
+}
+
+.getting-started-item.done {
+    opacity: .65;
+}
+
+.getting-started-item.done .gs-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    animation: onboardingPop .4s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.getting-started-item.done span.gs-label {
+    text-decoration: line-through;
+}
+
+.gs-label {
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.getting-started-congrats {
+    text-align: center;
+    padding: 12px 0 4px;
+}
+
+.getting-started-congrats .onboarding-emoji {
+    margin: 0 0 6px;
+    font-size: 40px;
+}
+
+body[data-theme="dark"] .getting-started-item {
+    background: var(--bg-soft);
+}
+
+body[data-theme="dark"] .onboarding-error {
+    background: rgba(239, 68, 68, .18);
+}
+
+/*  Small-screen tweaks */
+@media (max-width: 576px) {
+    .onboarding-modal-dialog {
+        max-width: calc(100% - 24px);
+    }
+    .onboarding-step-body,
+    .onboarding-step-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
