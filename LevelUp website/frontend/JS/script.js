@@ -560,7 +560,6 @@ function renderUpcomingEvents(card, items) {
     });
 }
 
-/** Rebuilds the notification bell dropdown from real due-soon items (or shows "No data to display"). */
 function renderNotifications(container, items) {
     container.innerHTML = '';
 
@@ -1113,7 +1112,6 @@ async function initTasksTable() {
     initTaskFilters();
 }
 
-/** Fetches every task for the logged-in user and re-renders the table body. */
 async function refreshTasksTable() {
     const body = document.getElementById('tasksTableBody');
     if (!body) return;
@@ -1367,7 +1365,7 @@ async function initTaskFilters() {
                 opt.textContent = s.name;
                 subjectSelect.appendChild(opt);
             });
-        } catch { /* subject dropdown is a nice-to-have filter - fail silently */ }
+        } catch {  }
     }
 
     ['taskFilterSubject', 'taskFilterDue', 'taskFilterUrgency', 'taskFilterStatus'].forEach(id => {
@@ -1500,7 +1498,6 @@ async function initAssignmentsExamsTabs() {
         return { icon: 'fa-solid fa-circle-check', text: "You're all caught up! Nothing due right now." };
     }
 
-    /** Used only when there is truly no data at all yet (not just filtered/completed). */
     function genuinelyEmptyMessageFor(type) {
         if (type === 'exam') return { icon: 'fa-solid fa-champagne-glasses', text: 'No exams yet. Add your first exam to stay ahead of test day.' };
         if (type === 'assignment') return { icon: 'fa-solid fa-note-sticky', text: ' No assignments yet. Create your first assignment to keep track of deadlines.' };
@@ -1802,7 +1799,7 @@ function bumpCompletedCount(delta) {
 }
 
 /* ==========================================================================
-   Dashboard stat cards: real counts from the database
+   Dashboard stat cards
    ========================================================================== */
 
 function currentWeekRangeIso() {
@@ -1957,7 +1954,7 @@ function renderGettingStartedCard(card, progress) {
     const dismissBtn = document.getElementById('gsDismissBtn');
     if (dismissBtn) {
         dismissBtn.addEventListener('click', () => {
-            try { localStorage.setItem(GETTING_STARTED_VISIBLE_KEY, 'false'); } catch { /* storage unavailable - just hide it for this view */ }
+            try { localStorage.setItem(GETTING_STARTED_VISIBLE_KEY, 'false'); } catch { /* storage unavailable */ }
             const row = document.getElementById('gettingStartedRow');
             if (row) row.style.display = 'none';
         });
@@ -2255,7 +2252,6 @@ function buildEmptyStateHtml({ icon = 'fa-solid fa-inbox', message, buttonLabel,
     return `<div class="empty-state-block"><i class="${icon}"></i><p>${escapeHtml(message)}</p>${button}</div>`;
 }
 
-/** Same as buildEmptyStateHtml, but wrapped in a <tr><td colspan=...> for table bodies. */
 function buildEmptyStateRow(colspan, opts) {
     const row = document.createElement('tr');
     row.className = 'empty-state-row';
@@ -2380,7 +2376,7 @@ const WEEKEND_DAYS = ['Sat', 'Sun'];
 function isWeekend(day) { return WEEKEND_DAYS.includes(day); }
 
 function getTodayDayAbbr() {
-    return DAY_ORDER[(new Date().getDay() + 6) % 7]; // JS getDay(): 0=Sun..6=Sat
+    return DAY_ORDER[(new Date().getDay() + 6) % 7]; 
 }
 
 const MAIN_SUBJECT_PALETTE = ['#7c3aed', '#22c55e', '#ef4444', '#f59e0b', '#2563eb', '#0ea5e9', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
@@ -2764,7 +2760,7 @@ async function renderSubjectProgress() {
         const subjectTasks = tasks.filter(t => t.subject && t.subject.id === subject.id);
         const total = subjectTasks.length;
         const done = subjectTasks.filter(t => t.status === 'done').length;
-        const pct = total ? Math.round((done / total) * 100) : 0; // real zero, never hidden (item 6)
+        const pct = total ? Math.round((done / total) * 100) : 0;
         const color = getMainSubjectColor(subject.name);
 
         let pillClass, pillLabel;
@@ -2791,7 +2787,7 @@ async function renderSubjectProgress() {
     });
 
     containers.forEach(el => el.innerHTML = rows.join(''));
-    initProgressAnimations(); // (re)animate the bars just injected
+    initProgressAnimations(); 
 }
 
 /* ==========================================================================
@@ -2911,6 +2907,75 @@ function initProgressAnimations() {
 
 const PLANNER_STATE_KEY = 'levelup-planner-state';
 
+const PLANNER_SYNCED_IDS_KEY = 'levelup-planner-synced-ids';
+let plannerSubjectIdCache = null; 
+
+function loadPlannerSyncedIds() {
+    try {
+        const raw = localStorage.getItem(PLANNER_SYNCED_IDS_KEY);
+        const ids = raw ? JSON.parse(raw) : [];
+        return Array.isArray(ids) ? ids : [];
+    } catch { return []; }
+}
+function savePlannerSyncedIds(ids) {
+    try { localStorage.setItem(PLANNER_SYNCED_IDS_KEY, JSON.stringify(ids || [])); } catch { /* storage unavailable */ }
+}
+
+function plannerDayToIsoDate(weekStartIso, dayAbbr) {
+    const idx = DAY_ORDER.indexOf(dayAbbr);
+    if (idx < 0) return weekStartIso;
+    const d = new Date(weekStartIso + 'T00:00:00');
+    d.setDate(d.getDate() + idx);
+    return toLocalIsoDate(d);
+}
+
+async function getPlannerSubjectId(subjectName) {
+    if (!subjectName) return null;
+    if (!plannerSubjectIdCache) {
+        plannerSubjectIdCache = {};
+        try {
+            const subjects = await SubjectsApi.list();
+            subjects.forEach(s => { plannerSubjectIdCache[s.name] = s.id; });
+        } catch {  }
+    }
+    if (subjectName in plannerSubjectIdCache) return plannerSubjectIdCache[subjectName];
+    try {
+        const id = await SubjectsApi.findOrCreateByName(subjectName);
+        plannerSubjectIdCache[subjectName] = id;
+        return id;
+    } catch { return null; }
+}
+
+async function syncPlannerSessionsToBackend(state) {
+    const staleIds = loadPlannerSyncedIds();
+    await Promise.allSettled(staleIds.map(id => PlannerApi.removeSession(id)));
+
+    const sessions = state.studySessions || [];
+    const newIds = [];
+
+    for (const session of sessions) {
+        try {
+            const subjectId = await getPlannerSubjectId(session.subject);
+            const created = await PlannerApi.createSession({
+                title: session.title,
+                date: plannerDayToIsoDate(state.weekStart, session.day),
+                startTime: session.start,
+                endTime: session.end,
+                sessionType: session.examPrep ? 'exam_prep' : 'regular',
+                subjectId: subjectId || undefined,
+                completed: !!session.done
+            });
+            session.backendId = created.id;
+            newIds.push(created.id);
+        } catch {
+
+        }
+    }
+
+    savePlannerSyncedIds(newIds);
+    savePlannerState(state);
+}
+
 let plannerCanGenerate = true;
 
 async function hasSchedulableDeadlines() {
@@ -2995,10 +3060,12 @@ async function initStudyPlanner() {
         if (!state) {
             state = { weekStart: currentMonday, ...freshState() };
             savePlannerState(state);
+            syncPlannerSessionsToBackend(state).catch(() => {});
         } else if (state.weekStart !== currentMonday) {
             const carryArgs = buildCarryOver(state);
             state = { weekStart: currentMonday, ...freshState(carryArgs) };
             savePlannerState(state);
+            syncPlannerSessionsToBackend(state).catch(() => {});
             if (plannerCanGenerate) {
                 showToast('New week: your planner was regenerated and any missed sessions carried forward.', 'success', 5200);
             }
@@ -3011,6 +3078,7 @@ async function initStudyPlanner() {
         try { localStorage.removeItem(PLANNER_STATE_KEY); } catch { /* storage unavailable */ }
         state = { weekStart: currentMonday, ...freshState() };
         savePlannerState(state);
+        syncPlannerSessionsToBackend(state).catch(() => {});
         renderPlannerLegend();
         renderPlanner(state);
         showToast('Your study planner data looked out of date, so it was rebuilt fresh.', 'success', 5200);
@@ -3029,6 +3097,7 @@ async function initStudyPlanner() {
         const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
         state = { weekStart: currentMonday, ...generateWeekSchedule({ carryStudyMinutes, carryMovable, carryUserMoved, restOnHolidays }) };
         savePlannerState(state);
+        syncPlannerSessionsToBackend(state).catch(() => {});
         renderPlanner(state);
         showToast(wantsMoreRest ? 'Planner regenerated, free weekends left open to rest.' : 'Planner regenerated for this week.', 'success');
     }
@@ -3042,7 +3111,7 @@ async function initStudyPlanner() {
             if (regenerateModalEl && typeof bootstrap !== 'undefined') {
                 bootstrap.Modal.getOrCreateInstance(regenerateModalEl).show();
             } else {
-                runRegenerate(restOnHolidays); // no modal available! fall back to last-known preference
+                runRegenerate(restOnHolidays); 
             }
         });
     }
@@ -3086,6 +3155,7 @@ async function initStudyPlanner() {
             const { carryStudyMinutes, carryMovable, carryUserMoved } = buildCarryOver(state);
             state = { weekStart: currentMonday, ...generateWeekSchedule({ carryStudyMinutes, carryMovable, carryUserMoved, restOnHolidays }) };
             savePlannerState(state);
+            syncPlannerSessionsToBackend(state).catch(() => {});
             renderPlanner(state);
             showToast(`Study hours set to ${formatTimeRange(startVal, endVal)} ! sessions rebuilt around it.`, 'success');
         });
@@ -3108,6 +3178,9 @@ async function initStudyPlanner() {
             if (!item) return;
             item.done = !item.done;
             savePlannerState(state);
+            if (item.backendId) {
+                PlannerApi.updateSession(item.backendId, { completed: item.done }).catch(() => {});
+            }
             renderPlanner(state);
         });
     }
@@ -3192,6 +3265,13 @@ async function initStudyPlanner() {
             session.userMoved = true;
             session.hasOverlap = false; // modal only offers slots that are actually free
             savePlannerState(state);
+            if (session.backendId) {
+                PlannerApi.updateSession(session.backendId, {
+                    date: plannerDayToIsoDate(state.weekStart, session.day),
+                    startTime: session.start,
+                    endTime: session.end
+                }).catch(() => {});
+            }
             renderPlanner(state);
             bootstrap.Modal.getOrCreateInstance(modalEl).hide();
             showToast(`Moved "${session.title}" to ${dayFullName(day)}, ${formatTimeRange(session.start, session.end)}.`, 'success');
@@ -3347,7 +3427,7 @@ function generateWeekSchedule({ carryStudyMinutes = {}, carryMovable = [], carry
 
     const conflicts = [];
     const shiftNotes = [];
-    const unscheduledRaw = []; // raw failures, deduped+counted into `unscheduled` just before returning
+    const unscheduledRaw = []; 
     const fixedItems = [];
     let nextId = 1;
 
@@ -3661,7 +3741,7 @@ function renderPlannerSummary(state) {
     if (label) {
         const start = new Date(state.weekStart + 'T00:00:00');
         const end = new Date(start);
-        end.setDate(end.getDate() + 6); // Mon → Sun
+        end.setDate(end.getDate() + 6); 
         const opts = { month: 'short', day: 'numeric' };
         label.textContent = `Week of ${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
     }
@@ -3690,7 +3770,7 @@ function renderPlannerSummary(state) {
 let progressCharts = {};
 
 async function initProgressCharts() {
-    if (typeof Chart === 'undefined') return; // CDN blocked/offline, page still works without charts
+    if (typeof Chart === 'undefined') return; 
 
     Chart.defaults.font.family = "'Poppins', sans-serif";
 
@@ -3713,7 +3793,7 @@ function chartThemeColors() {
     };
 }
 
-/*  Attendance - present/absent rate per subject, from real records in the database. */
+/*  Attendance - present/absent rate per subject. */
 async function renderAttendanceChart() {
     const ctx = document.getElementById('attendanceChart');
     if (!ctx) return;
