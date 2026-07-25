@@ -1,6 +1,9 @@
 
+const RENDER_BACKEND_URL = 'https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com/api';
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = location.hostname.endsWith('github.io')
+    ? RENDER_BACKEND_URL
+    : `${location.protocol}//${location.host}/api`;
 
 const AUTH_TOKEN_KEY = 'levelup-auth-token';
 const AUTH_USER_KEY = 'levelup-auth-user';

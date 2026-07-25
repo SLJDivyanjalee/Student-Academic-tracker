@@ -12,7 +12,19 @@ import java.util.concurrent.Executors;
 
 public class Main {
 
-    private static final int PORT = 8080;
+    private static final int PORT = getPort();
+
+    private static int getPort() {
+        String envPort = System.getenv("PORT");
+        if (envPort != null && !envPort.isEmpty()) {
+            try {
+                return Integer.parseInt(envPort);
+            } catch (NumberFormatException ignored) {
+                // fall through to default
+            }
+        }
+        return 8080;
+    }
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
@@ -35,6 +47,12 @@ public class Main {
         server.createContext(CalendarController.BASE_PATH, new CalendarController());
         server.createContext(ProgressController.BASE_PATH, new ProgressController());
         server.createContext(AiHelpController.BASE_PATH, new AiHelpController());
+
+        // Serve the frontend (HTML/CSS/JS) from the same server + port.
+        // FRONTEND_DIR env var lets this point wherever the deploy copies the
+        // frontend folder to; defaults to a "public" folder next to the jar/classes.
+        String frontendDir = System.getenv().getOrDefault("FRONTEND_DIR", "public");
+        server.createContext("/", new com.levelup.util.StaticFileHandler(frontendDir));
 
         // Thread pool so multiple requests can be served concurrently
         server.setExecutor(Executors.newFixedThreadPool(16));

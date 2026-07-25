@@ -42,9 +42,11 @@ public final class DatabaseConnection {
             System.err.println("[DatabaseConnection] Failed reading db.properties from classpath: " + e.getMessage());
         }
 
-        throw new IllegalStateException(
-                "Could not find db.properties. Copy db.properties.example to db.properties " +
-                "next to the compiled classes (or project root) and fill in your MySQL credentials.");
+        // No file found — that's fine if everything needed is supplied via
+        // environment variables (e.g. on Render). Only becomes a problem if a
+        // property is requested that has neither an env var nor a file value.
+        loaded = true;
+        System.out.println("[DatabaseConnection] No db.properties found; relying on environment variables.");
     }
 
     private static InputStream tryOpenFile(String path) {
@@ -56,17 +58,29 @@ public final class DatabaseConnection {
     }
 
     public static Connection getConnection() throws SQLException {
-        loadProperties();
-        String url = PROPERTIES.getProperty("db.url");
-        String user = PROPERTIES.getProperty("db.user");
-        String password = PROPERTIES.getProperty("db.password");
+        String url = getProperty("db.url");
+        String user = getProperty("db.user");
+        String password = getProperty("db.password");
         if (url == null) {
-            throw new SQLException("db.url missing from db.properties");
+            throw new SQLException("db.url missing (set DB_URL env var or db.url in db.properties)");
         }
         return DriverManager.getConnection(url, user, password);
     }
 
+    /**
+     * Looks up a config value, preferring an environment variable over the
+     * properties file. This lets hosts like Render supply secrets via their
+     * dashboard instead of a committed file.
+     *
+     * "db.url" -> checks env var "DB_URL" first, then falls back to
+     * db.properties. Same pattern for db.user, db.password, ai.gemini.apiKey, etc.
+     */
     public static String getProperty(String key) {
+        String envKey = key.toUpperCase().replace('.', '_');
+        String envValue = System.getenv(envKey);
+        if (envValue != null && !envValue.isEmpty()) {
+            return envValue;
+        }
         loadProperties();
         return PROPERTIES.getProperty(key);
     }
