@@ -1,0 +1,15 @@
+# Local config with secrets — use db.properties.example as a template
+LevelUp website/backend/db.properties
+
+# Compiled classes
+LevelUp website/backend/bin/
+*.class
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
