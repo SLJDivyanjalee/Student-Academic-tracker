@@ -98,7 +98,7 @@ function initTheme() {
    Settings - account details (name / email / faculty / semester / avatar)
    ========================================================================== */
 
-const DEFAULT_PROFILE_NAME = 'Tharindu
+const DEFAULT_PROFILE_NAME = 'Tharindu';
 
 function applyTimeBasedGreeting() {
     const greetingTitle = document.getElementById('greetingTitle');
