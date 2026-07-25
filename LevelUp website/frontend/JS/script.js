@@ -2918,7 +2918,7 @@ async function hasSchedulableDeadlines() {
         const [tasks, aeItems] = await Promise.all([TasksApi.list(), AssignmentsExamsApi.list()]);
         return tasks.some(t => t.dueDate) || aeItems.some(a => a.dueDate);
     } catch {
-        return true; /
+        return true; 
     }
 }
 const PLANNER_HOURS_KEY = 'levelup-planner-hours';
