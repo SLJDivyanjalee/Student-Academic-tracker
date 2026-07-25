@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initContactForm();
 });
 
+
 function initHomeTheme() {
     const toggle = document.getElementById('homeThemeToggle');
     if (!toggle) return;
