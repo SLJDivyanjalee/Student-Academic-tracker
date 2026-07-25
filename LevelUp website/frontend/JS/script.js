@@ -141,9 +141,12 @@ function applyProfileSettings() {
         document.querySelectorAll('.profile h6, #topbarProfileName').forEach(el => el.textContent = user.name);
 
         const greetingTitle = document.getElementById('greetingTitle');
-        if (greetingTitle && greetingTitle.textContent.includes(DEFAULT_PROFILE_NAME)) {
-            const firstName = user.name.trim().split(/\s+/)[0];
-            greetingTitle.textContent = greetingTitle.textContent.replace(DEFAULT_PROFILE_NAME, firstName);
+        if (greetingTitle) {
+            const match = greetingTitle.textContent.match(/^(Good (?:Morning|Afternoon|Evening),\s*).*/);
+            if (match) {
+                const firstName = user.name.trim().split(/\s+/)[0];
+                greetingTitle.textContent = match[1] + firstName;
+            }
         }
     }
 
