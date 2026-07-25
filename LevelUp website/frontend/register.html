@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create your account — LevelUp</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/home.css">
+</head>
+
+<body data-theme="dark">
+
+<div class="lp-auth-wrap">
+    <div class="lp-auth-card">
+        <div class="lp-auth-visual">
+            <div class="lp-auth-visual-inner">
+                <img src="assets/logo-light.png" alt="LevelUp" class="lp-auth-visual-logo lp-auth-visual-logo-lg">
+                <h2>Your whole semester, organized.</h2>
+                <p>Join LevelUp and turn your timetable, tasks, and exams into one clear, manageable plan.</p>
+                <ul class="lp-auth-visual-list">
+                    <li><i class="bi bi-check-circle-fill"></i> Set up in under a minute</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Free for students</li>
+                    <li><i class="bi bi-check-circle-fill"></i> Built around how you actually study</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="lp-auth-form-side">
+            <h1>Create your account</h1>
+            <p class="lp-auth-sub">Set up LevelUp for your semester in under a minute.</p>
+
+            <div class="lp-auth-error" id="registerError"></div>
+
+            <form id="registerForm" novalidate>
+                <div class="lp-field">
+                    <label for="registerName" class="form-label">Full name</label>
+                    <div class="lp-input-group">
+                        <i class="bi bi-person"></i>
+                        <input type="text" class="form-control" id="registerName" placeholder="e.g. Sunil Perera" required>
+                    </div>
+                </div>
+                <div class="lp-field">
+                    <label for="registerEmail" class="form-label">Email</label>
+                    <div class="lp-input-group">
+                        <i class="bi bi-envelope"></i>
+                        <input type="email" class="form-control" id="registerEmail" placeholder="you@university.edu" required>
+                    </div>
+                </div>
+                <div class="lp-field">
+                    <label for="registerPassword" class="form-label">Password</label>
+                    <div class="lp-input-group">
+                        <i class="bi bi-lock"></i>
+                        <input type="password" class="form-control" id="registerPassword" placeholder="At least 8 characters" required minlength="8">
+                    </div>
+                </div>
+                <button type="submit" class="lp-auth-submit" id="registerSubmitBtn">Create account</button>
+            </form>
+
+            <p class="lp-auth-foot">Already have an account? <a href="login.html">Log in</a></p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="JS/api.js"></script>
+<script src="JS/password-toggle.js"></script>
+<script>
+    if (Auth.isLoggedIn()) {
+        location.href = 'dashboard.html';
+    }
+
+    const form = document.getElementById('registerForm');
+    const errorBox = document.getElementById('registerError');
+    const submitBtn = document.getElementById('registerSubmitBtn');
+
+    function showError(message) {
+        errorBox.textContent = message;
+        errorBox.classList.add('show');
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorBox.classList.remove('show');
+        const name = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        const password = document.getElementById('registerPassword').value;
+
+        if (password.length < 8) {
+            showError('Password must be at least 8 characters.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating account...';
+        try {
+            const result = await AuthApi.register(name, email, password);
+            Auth.setSession(result.token, result.user);
+            // Brand new accounts always start with onboardingComplete === false
+            // (see UserDao.create()), so this sends every new signup to the wizard.
+            location.href = result.user && result.user.onboardingComplete === false
+                ? 'onboarding.html'
+                : 'dashboard.html';
+        } catch (err) {
+            showError(err.message || 'Could not create your account. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create account';
+        }
+    });
+</script>
+</body>
+</html>
