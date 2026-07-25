@@ -24,6 +24,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="CSS/style.css">
+    <link rel="stylesheet" href="CSS/help.css">
 </head>
 
 <body>
@@ -41,10 +42,6 @@
         </div>
     </div>
     <div class="notif-list" id="notifList">
-        <div class="notif-item unread" data-id="1"><i class="bi bi-journal-text text-primary"></i><div><p>Database ER Diagram is due today</p><small>2h ago</small></div></div>
-        <div class="notif-item unread" data-id="2"><i class="bi bi-pencil-square text-danger"></i><div><p>Statistics Quiz is on Friday</p><small>5h ago</small></div></div>
-        <div class="notif-item unread" data-id="3"><i class="bi bi-fire text-warning"></i><div><p>You're on a 12-day streak, keep it going!</p><small>1d ago</small></div></div>
-        <div class="notif-item unread" data-id="4"><i class="bi bi-people text-success"></i><div><p>Rotaract meeting moved to Saturday 2 PM</p><small>1d ago</small></div></div>
     </div>
 </div>
 
@@ -57,16 +54,16 @@
             <button class="sidebar-close" id="sidebarClose" aria-label="Close menu"><i class="bi bi-x-lg"></i></button>
         </div>
         <ul id="sidebarNav">
-            <li data-href="index.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
+            <li data-href="dashboard.html"><i class="bi bi-grid-fill"></i> Dashboard</li>
             <li data-href="calendar.html"><i class="bi bi-calendar3"></i> Calendar</li>
             <li class="active" data-href="tasks.html"><i class="bi bi-list-check"></i> Tasks</li>
             <li data-href="assignments-exams.html?type=assignment"><i class="bi bi-journal-text"></i> Assignments</li>
             <li data-href="assignments-exams.html?type=exam"><i class="bi bi-pencil-square"></i> Exams</li>
-            <li data-href="index.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
+            <li data-href="dashboard.html#timerCard"><i class="bi bi-book"></i> Study Sessions</li>
             <li data-href="attendance.html"><i class="bi bi-clipboard2-check"></i> Attendance</li>
             <li data-href="studyplanner.html"><i class="bi bi-calendar2-week"></i> Study Planner</li>
             <li data-href="progress.html"><i class="bi bi-graph-up-arrow"></i> Progress</li>
-            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li>        </ul>
+            <li data-href="settings.html"><i class="bi bi-gear"></i> Settings</li><li id="logoutNavItem"><i class="bi bi-box-arrow-right"></i> Logout</li></ul>
     </div>
 
     <!-- Main Content -->
@@ -93,13 +90,14 @@
                     <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
                     <div class="notification" id="notifWrap">
                         <i class="bi bi-bell fs-4" id="notifBell" role="button"></i>
-                        <span id="notifCount">4</span>
+                        <span id="notifCount">0</span>
                     </div>
                     <div class="profile">
-                        <img src="https://i.pravatar.cc/45" alt="">
+                        <img alt="" id="topbarProfileAvatar" style="display:none">
+                        <i class="fa-solid fa-circle-user avatar-fallback-icon" id="topbarProfileAvatarIcon"></i>
                         <div>
-                            <h6>Sunil</h6>
-                            <small>Computer Science</small>
+                            <h6 id="topbarProfileName">Sunil</h6>
+                            <small id="topbarProfileFaculty">Computer Science</small>
                         </div>
                     </div>
                 </div>
@@ -119,8 +117,8 @@
                                 <input type="text" class="form-control" id="newTaskName" placeholder="e.g. Read Chapter 4 notes">
                             </div>
                             <div>
-                                <label class="form-label small text-muted" for="newTaskSubject">Subject</label>
-                                <input type="text" class="form-control" id="newTaskSubject" list="newTaskSubjectList" placeholder="e.g. Database Systems">
+                                <label class="form-label small text-muted" for="newTaskSubject">Subject <span class="fw-normal">(optional)</span></label>
+                                <input type="text" class="form-control" id="newTaskSubject" list="newTaskSubjectList" placeholder="e.g. Database Systems — leave blank for a personal event">
                                 <datalist id="newTaskSubjectList">
                                     <option value="Object Oriented Programming">
                                     <option value="Data Structures &amp; Algorithms">
@@ -155,6 +153,30 @@
                     <div class="card-header-custom">
                         <h4><i class="fa-solid fa-list-check"></i> Recent Tasks</h4>
                     </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3" id="taskFiltersBar">
+                        <select class="form-select form-select-sm w-auto" id="taskFilterSubject">
+                            <option value="">All Subjects</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="taskFilterDue">
+                            <option value="">All Due Dates</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="today">Due Today</option>
+                            <option value="week">Due This Week</option>
+                            <option value="later">Due Later</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="taskFilterUrgency">
+                            <option value="">All Urgency</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <select class="form-select form-select-sm w-auto" id="taskFilterStatus">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="progress">In Progress</option>
+                            <option value="done">Done</option>
+                        </select>
+                    </div>
                     <div class="table-responsive">
                         <table class="tasks-table" id="tasksTable">
                             <thead>
@@ -167,73 +189,7 @@
                                     <th class="task-actions-head">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="task-title-cell">
-                                        <i class="bi bi-journal-text text-primary me-2"></i>
-                                        <span class="task-name">Database ER Diagram</span>
-                                    </td>
-                                    <td class="task-subject">Database Systems</td>
-                                    <td>Today</td>
-                                    <td><span class="urgency-pill urgency-high" data-urgency="high" role="button" tabindex="0">High</span></td>
-                                    <td><span class="status-pill status-pending" data-status="pending" role="button" tabindex="0">Pending</span></td>
-                                    <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr>
-                                    <td class="task-title-cell">
-                                        <i class="bi bi-pencil-square text-danger me-2"></i>
-                                        <span class="task-name">Statistics Quiz Prep</span>
-                                    </td>
-                                    <td class="task-subject">Inferential Stats</td>
-                                    <td>Tomorrow</td>
-                                    <td><span class="urgency-pill urgency-high" data-urgency="high" role="button" tabindex="0">High</span></td>
-                                    <td><span class="status-pill status-progress" data-status="progress" role="button" tabindex="0">In Progress</span></td>
-                                    <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr class="completed-row">
-                                    <td class="task-title-cell">
-                                        <i class="bi bi-check-circle text-success me-2"></i>
-                                        <span class="task-name">OOP Lab Exercise 4</span>
-                                    </td>
-                                    <td class="task-subject">OOP</td>
-                                    <td>Jul 2</td>
-                                    <td><span class="urgency-pill urgency-low" data-urgency="low" role="button" tabindex="0">Low</span></td>
-                                    <td><span class="status-pill status-done" data-status="done" role="button" tabindex="0">Completed</span></td>
-                                    <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr class="completed-row">
-                                    <td class="task-title-cell">
-                                        <i class="bi bi-check-circle text-success me-2"></i>
-                                        <span class="task-name">DSA Assignment 3</span>
-                                    </td>
-                                    <td class="task-subject">DSA</td>
-                                    <td>Jul 1</td>
-                                    <td><span class="urgency-pill urgency-low" data-urgency="low" role="button" tabindex="0">Low</span></td>
-                                    <td><span class="status-pill status-done" data-status="done" role="button" tabindex="0">Completed</span></td>
-                                    <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr>
-                                    <td class="task-title-cell">
-                                        <i class="bi bi-book text-warning me-2"></i>
-                                        <span class="task-name">Linear Algebra Study</span>
-                                    </td>
-                                    <td class="task-subject">Linear Algebra</td>
-                                    <td>Jul 6</td>
-                                    <td><span class="urgency-pill urgency-medium" data-urgency="medium" role="button" tabindex="0">Medium</span></td>
-                                    <td><span class="status-pill status-pending" data-status="pending" role="button" tabindex="0">Pending</span></td>
-                                    <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-                                </tr>
-                                <tr class="completed-row">
-                                    <td class="task-title-cell">
-                                        <i class="bi bi-check-circle text-success me-2"></i>
-                                        <span class="task-name">Real Analysis Notes</span>
-                                    </td>
-                                    <td class="task-subject">Real Analysis</td>
-                                    <td>Jun 30</td>
-                                    <td><span class="urgency-pill urgency-low" data-urgency="low" role="button" tabindex="0">Low</span></td>
-                                    <td><span class="status-pill status-done" data-status="done" role="button" tabindex="0">Completed</span></td>
-                                    <td class="task-actions"><button class="action-edit-btn" aria-label="Edit task"><i class="bi bi-pencil"></i></button><button class="log-delete-btn" aria-label="Delete task"><i class="bi bi-trash"></i></button></td>
-                                </tr>
+                            <tbody id="tasksTableBody">
                             </tbody>
                         </table>
                         <p class="search-no-results" id="taskSearchNoResults">No tasks match your search.</p>
@@ -272,12 +228,12 @@
                     <input type="text" class="form-control" id="editTaskName">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="editTaskSubject">Subject</label>
-                    <input type="text" class="form-control" id="editTaskSubject" list="newTaskSubjectList">
+                    <label class="form-label" for="editTaskSubject">Subject <span class="fw-normal">(optional)</span></label>
+                    <input type="text" class="form-control" id="editTaskSubject" list="newTaskSubjectList" placeholder="Leave blank for a personal event">
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="editTaskDue">Due date</label>
-                    <input type="text" class="form-control" id="editTaskDue" placeholder="e.g. Jul 15, Today, No due date">
+                    <input type="date" class="form-control" id="editTaskDue">
                 </div>
                 <div class="mb-2">
                     <label class="form-label" for="editTaskUrgency">Urgency</label>
@@ -296,9 +252,41 @@
     </div>
 </div>
 
+<!--  Tag Task Modal - shown when Add Task is clicked with no Subject typed in,
+      so a blank subject is a deliberate choice ("Personal") instead of a
+      silent default, and the user can give it any other tag they want instead.  -->
+<div class="modal fade" id="taskTagModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-tag"></i> Tag This Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">You didn't set a subject for this task. Tag it as <strong>Personal</strong>, or give it a custom tag instead.</p>
+                <div class="d-flex flex-wrap gap-2 mb-3" id="taskTagQuickPicks">
+                    <button type="button" class="btn btn-sm btn-outline-primary tag-quick-pick" data-tag="Personal"><i class="bi bi-person"></i> Personal</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary tag-quick-pick" data-tag="Chores"><i class="bi bi-house"></i> Chores</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary tag-quick-pick" data-tag="Finance"><i class="bi bi-cash-coin"></i> Finance</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary tag-quick-pick" data-tag="Health"><i class="bi bi-heart-pulse"></i> Health</button>
+                </div>
+                <label class="form-label small text-muted" for="taskTagInput">Or type your own tag</label>
+                <input type="text" class="form-control" id="taskTagInput" placeholder="e.g. Personal, Chores, Side Project...">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="taskTagConfirmBtn"><i class="bi bi-check-lg"></i> Tag &amp; Add Task</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<script src="JS/api.js"></script>
+<script>Auth.requireAuth();</script>
 <script src="JS/script.js"></script>
+<script src="JS/help.js"></script>
 
 </body>
 </html>
