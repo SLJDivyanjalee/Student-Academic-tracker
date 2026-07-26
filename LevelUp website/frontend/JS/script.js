@@ -1587,7 +1587,6 @@ async function initAssignmentsExamsTabs() {
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             activeType = tab.dataset.type;
-            updateHeading();
             render();
         });
     });
@@ -3061,7 +3060,7 @@ async function initStudyPlanner() {
 
     let state = loadPlannerState();
     let restOnHolidays = loadRestOnHolidays();
-    plannerCanGenerate = await hasSchedulableDeadlines();
+    plannerCanGenerate = timetableLectures.length > 0 && await hasSchedulableDeadlines();
 
     function freshState(carryArgs) {
         return plannerCanGenerate
@@ -3102,7 +3101,7 @@ async function initStudyPlanner() {
 
     function runRegenerate(wantsMoreRest) {
         if (!plannerCanGenerate) {
-            showToast('Add at least one task, assignment, or exam with a due date before generating your study plan.');
+            showToast('Add your lecture timetable and at least one task, assignment, or exam with a due date before generating your study plan.');
             return;
         }
         restOnHolidays = wantsMoreRest;
@@ -3118,7 +3117,7 @@ async function initStudyPlanner() {
     if (regenBtn) {
         regenBtn.addEventListener('click', () => {
             if (!plannerCanGenerate) {
-                showToast('Add at least one task, assignment, or exam with a due date before generating your study plan.');
+                showToast('Add your lecture timetable and at least one task, assignment, or exam with a due date before generating your study plan.');
                 return;
             }
             if (regenerateModalEl && typeof bootstrap !== 'undefined') {
@@ -3626,7 +3625,7 @@ function renderPlannerBanner(state) {
     if (!plannerCanGenerate && !conflicts.length && !shifts.length && !unscheduled.length && !userOverlaps.length) {
         wrap.innerHTML = `<div class="planner-banner-group planner-banner-shift">
             <h6><i class="bi bi-info-circle-fill"></i> Nothing to generate yet</h6>
-            <ul><li>Add at least one task, assignment, or exam with a due date before generating your study plan.
+            <ul><li>Add your lecture timetable and at least one task, assignment, or exam with a due date before generating your study plan.
                 <div class="planner-banner-actions"><a href="tasks.html" class="btn btn-sm btn-outline-primary">Go to Tasks</a></div>
             </li></ul>
         </div>`;
