@@ -283,6 +283,12 @@ function initDangerZone() {
             confirmResetBtn.disabled = true;
             try {
                 await ProfileApi.resetData();
+                try {
+                    localStorage.removeItem(PLANNER_STATE_KEY);
+                    localStorage.removeItem(PLANNER_SYNCED_IDS_KEY);
+                    localStorage.removeItem(PLANNER_HOURS_KEY);
+                    localStorage.removeItem(PLANNER_REST_KEY);
+                } catch { /* storage unavailable - planner cache just won't clear, non-fatal */ }
                 if (resetModalEl && typeof bootstrap !== 'undefined') {
                     bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
                 }
