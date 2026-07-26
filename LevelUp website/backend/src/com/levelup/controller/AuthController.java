@@ -45,7 +45,7 @@ public class AuthController implements HttpHandler {
                 if (token != null) {
                     HttpUtil.sendJson(exchange, 200, Map.of("requested", true, "resetToken", token));
                 } else {
-                    HttpUtil.sendJson(exchange, 200, Map.of("requested", true));
+                    HttpUtil.sendJson(exchange, 404, Map.of("error", "No account found with that email."));
                 }
                 return;
             }
