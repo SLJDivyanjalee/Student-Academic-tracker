@@ -40,15 +40,15 @@ public class AuthService {
     public AuthResult register(Map<String, Object> body) throws DaoException {
         List<String> errors = ValidationUtil.newErrorList();
         String name = ValidationUtil.requireNonEmptyString(body, "name", errors);
-        String email = ValidationUtil.requireNonEmptyString(body, "email", errors);
+        String email = ValidationUtil.requireEmail(body, "email", errors);
         String password = ValidationUtil.requireNonEmptyString(body, "password", errors);
         if (password != null && password.length() < MIN_PASSWORD_LENGTH) {
-            errors.add("password must be at least " + MIN_PASSWORD_LENGTH + " characters");
+            errors.add("Password must be at least " + MIN_PASSWORD_LENGTH + " characters");
         }
         ValidationUtil.throwIfErrors(errors);
 
         if (userDao.findByEmail(email) != null) {
-            throw new ValidationException(List.of("An account with that email already exists"));
+            throw new ValidationException(List.of("There is already an account registered with that email."));
         }
 
         String salt = PasswordUtil.newSalt();
@@ -70,13 +70,16 @@ public class AuthService {
 
     public AuthResult login(Map<String, Object> body) throws DaoException {
         List<String> errors = ValidationUtil.newErrorList();
-        String email = ValidationUtil.requireNonEmptyString(body, "email", errors);
+        String email = ValidationUtil.requireEmail(body, "email", errors);
         String password = ValidationUtil.requireNonEmptyString(body, "password", errors);
         ValidationUtil.throwIfErrors(errors);
 
         User user = userDao.findByEmail(email);
-        if (user == null || !PasswordUtil.verify(password, user.getPasswordSalt(), user.getPasswordHash())) {
-            throw new ValidationException(List.of("Incorrect email or password"));
+        if (user == null) {
+            throw new ValidationException(List.of("No account found with that email."));
+        }
+        if (!PasswordUtil.verify(password, user.getPasswordSalt(), user.getPasswordHash())) {
+            throw new ValidationException(List.of("Incorrect password. Try again."));
         }
 
         String token = issueSession(user.getId());

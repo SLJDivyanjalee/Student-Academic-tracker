@@ -8,9 +8,13 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 
 public final class ValidationUtil {
+
+    private static final Pattern EMAIL_PATTERN =
+            Pattern.compile("^[\\w.+-]+@[\\w-]+\\.[a-zA-Z]{2,}$");
 
     private ValidationUtil() {
     }
@@ -22,6 +26,38 @@ public final class ValidationUtil {
             return null;
         }
         return ((String) value).trim();
+    }
+
+    public static String requireEmail(Map<String, Object> body, String field, List<String> errors) {
+        Object value = body.get(field);
+        if (!(value instanceof String) || ((String) value).trim().isEmpty()) {
+            errors.add("Email is required");
+            return null;
+        }
+        String email = ((String) value).trim();
+
+        if (!email.contains("@")) {
+            errors.add("Email address is missing the '@' symbol");
+            return null;
+        }
+        String[] parts = email.split("@", -1);
+        if (parts.length != 2 || parts[0].isEmpty()) {
+            errors.add("Email address is missing the part before '@'");
+            return null;
+        }
+        if (parts[1].isEmpty()) {
+            errors.add("Email address is missing the domain after '@' (e.g. gmail.com)");
+            return null;
+        }
+        if (!parts[1].contains(".")) {
+            errors.add("Email domain is missing a '.' (e.g. " + parts[1] + ".com)");
+            return null;
+        }
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            errors.add("Email address format looks invalid");
+            return null;
+        }
+        return email.toLowerCase();
     }
 
     public static String optionalString(Map<String, Object> body, String field) {

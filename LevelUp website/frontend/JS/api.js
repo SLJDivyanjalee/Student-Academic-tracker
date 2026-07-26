@@ -89,7 +89,8 @@ async function apiRequest(method, path, body) {
     }
 
     if (!response.ok) {
-        const message = (data && (data.error || (data.details && data.details.join(', ')))) || `Request failed (${response.status})`;
+        const message = (data && ((data.details && data.details.length && data.details.join(', ')) || data.error))
+            || `Request failed (${response.status})`;
         const err = new Error(message);
         err.status = response.status;
         err.data = data;
