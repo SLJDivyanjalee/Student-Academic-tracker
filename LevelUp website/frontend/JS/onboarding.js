@@ -42,8 +42,8 @@ function initOnboardingWizard() {
     const errorBox = document.getElementById('onboardingError');
 
     const form = document.getElementById('onboardingForm');
-    const semesterInput = document.getElementById('obSemester');
-    const subjectsInput = document.getElementById('obSubjectsCount');
+    const workStartInput = document.getElementById('obWorkStart');
+    const workEndInput = document.getElementById('obWorkEnd');
     const dailyGoalInput = document.getElementById('obDailyGoal');
     const dailyGoalValue = document.getElementById('obDailyGoalValue');
 
@@ -98,13 +98,15 @@ function initOnboardingWizard() {
 
     /* Reads the Academic Setup form into the shape OnboardingApi.complete() expects. */
     function collectPayload() {
+        const deadlineReminders = document.getElementById('obNotifyDeadlines').checked;
+        const dailySummary = document.getElementById('obNotifyDailySummary').checked;
         return {
-            semester: semesterInput.value || null,
-            subjectsCount: subjectsInput.value ? Number(subjectsInput.value) : null,
+            workStart: workStartInput.value || null,
+            workEnd: workEndInput.value || null,
             dailyGoalHours: Number(dailyGoalInput.value),
-            notifyAssignmentReminders: document.getElementById('obNotifyAssignments').checked,
-            notifyExamReminders: document.getElementById('obNotifyExams').checked,
-            notifyStudyReminders: document.getElementById('obNotifyStudy').checked
+            notifyAssignmentReminders: deadlineReminders,
+            notifyExamReminders: deadlineReminders,
+            notifyStudyReminders: dailySummary
         };
     }
 
@@ -134,9 +136,8 @@ function initOnboardingWizard() {
             form.reportValidity();
             return;
         }
-        const subjectsCount = Number(subjectsInput.value);
-        if (!Number.isInteger(subjectsCount) || subjectsCount < 1 || subjectsCount > 30) {
-            showError('Please enter a number of subjects between 1 and 30.');
+        if (workStartInput.value >= workEndInput.value) {
+            showError('Your "free from" time must be before your "free until" time.');
             return;
         }
         goToStep(3);

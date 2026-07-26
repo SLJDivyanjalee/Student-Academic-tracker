@@ -70,28 +70,17 @@
                         <div class="onboarding-error" id="onboardingError"></div>
                         <form id="onboardingForm" novalidate>
                             <div class="mb-3">
-                                <label class="form-label" for="obSemester">Current Semester</label>
-                                <select class="form-select" id="obSemester" required>
-                                    <option value="" selected disabled>Select your semester</option>
-                                    <option value="Semester 1">Semester 1</option>
-                                    <option value="Semester 2">Semester 2</option>
-                                    <option value="Semester 3">Semester 3</option>
-                                    <option value="Semester 4">Semester 4</option>
-                                    <option value="Semester 5">Semester 5</option>
-                                    <option value="Semester 6">Semester 6</option>
-                                    <option value="Semester 7">Semester 7</option>
-                                    <option value="Semester 8">Semester 8</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label" for="obSubjectsCount">Number of Subjects</label>
-                                <input type="number" class="form-control" id="obSubjectsCount" min="1" max="30" value="5" required>
+                                <label class="form-label">When are you usually free to work on things?</label>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <input type="time" class="form-control" id="obWorkStart" value="07:00" required>
+                                    <span class="text-muted">to</span>
+                                    <input type="time" class="form-control" id="obWorkEnd" value="22:00" required>
+                                </div>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="obDailyGoal">
-                                    Preferred Daily Study Goal
+                                    Daily Task Goal
                                     <span class="onboarding-range-value" id="obDailyGoalValue">2 hrs/day</span>
                                 </label>
                                 <input type="range" class="form-range" id="obDailyGoal" min="1" max="10" value="2">
@@ -100,16 +89,12 @@
                             <div class="mb-2">
                                 <label class="form-label d-block">Enable Notifications</label>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="obNotifyAssignments" checked>
-                                    <label class="form-check-label" for="obNotifyAssignments">Assignment reminders</label>
+                                    <input class="form-check-input" type="checkbox" id="obNotifyDeadlines" checked>
+                                    <label class="form-check-label" for="obNotifyDeadlines">Deadline reminders</label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="obNotifyExams" checked>
-                                    <label class="form-check-label" for="obNotifyExams">Exam reminders</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="obNotifyStudy" checked>
-                                    <label class="form-check-label" for="obNotifyStudy">Study session reminders</label>
+                                    <input class="form-check-input" type="checkbox" id="obNotifyDailySummary" checked>
+                                    <label class="form-check-label" for="obNotifyDailySummary">Daily reminder summary</label>
                                 </div>
                             </div>
                         </form>

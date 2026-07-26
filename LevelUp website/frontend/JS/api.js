@@ -120,7 +120,7 @@ const AuthApi = {
 /* ----Onboarding (first-time setup wizard)----  */
 const OnboardingApi = {
     status() { return apiRequest('GET', '/onboarding/status'); },
-    /** payload: { semester, subjectsCount, dailyGoalHours, notifyAssignmentReminders, notifyExamReminders, notifyStudyReminders } */
+    /** payload: { workStart, workEnd, dailyGoalHours, notifyAssignmentReminders, notifyExamReminders, notifyStudyReminders } */
     complete(payload) { return apiRequest('POST', '/onboarding/complete', payload || {}); }
 };
 
