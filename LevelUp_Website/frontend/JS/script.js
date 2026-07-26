@@ -2917,9 +2917,15 @@ function initProgressAnimations() {
      3. Auto-generated study sessions 
    ========================================================================== */
 
-const PLANNER_STATE_KEY = 'levelup-planner-state';
+function plannerStorageKey(base) {
+    const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+    const userId = (user && user.id != null) ? user.id : 'anon';
+    return `${base}-${userId}`;
+}
 
-const PLANNER_SYNCED_IDS_KEY = 'levelup-planner-synced-ids';
+const PLANNER_STATE_KEY = plannerStorageKey('levelup-planner-state');
+
+const PLANNER_SYNCED_IDS_KEY = plannerStorageKey('levelup-planner-synced-ids');
 let plannerSubjectIdCache = null; 
 
 function loadPlannerSyncedIds() {
@@ -2998,8 +3004,8 @@ async function hasSchedulableDeadlines() {
         return true; 
     }
 }
-const PLANNER_HOURS_KEY = 'levelup-planner-hours';
-const PLANNER_REST_KEY = 'levelup-planner-rest-on-holidays';
+const PLANNER_HOURS_KEY = plannerStorageKey('levelup-planner-hours');
+const PLANNER_REST_KEY = plannerStorageKey('levelup-planner-rest-on-holidays');
 
 function loadRestOnHolidays() {
     try { return localStorage.getItem(PLANNER_REST_KEY) === 'true'; } catch { return false; }
@@ -3070,9 +3076,10 @@ async function initStudyPlanner() {
 
     try {
         if (!state) {
-            state = { weekStart: currentMonday, ...freshState() };
-            savePlannerState(state);
-            syncPlannerSessionsToBackend(state).catch(() => {});
+            // First-ever visit for this account (or a fresh browser) —
+            // don't auto-generate a plan. Show an empty planner and wait
+            // for the student to press "Regenerate Week" themselves.
+            state = { weekStart: currentMonday, fixedItems: [], studySessions: [], conflicts: [], shiftNotes: [], unscheduled: [] };
         } else if (state.weekStart !== currentMonday) {
             const carryArgs = buildCarryOver(state);
             state = { weekStart: currentMonday, ...freshState(carryArgs) };
